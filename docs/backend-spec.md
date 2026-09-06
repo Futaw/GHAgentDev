@@ -6,6 +6,8 @@
 
 本文書ではサービス境界、Codex App Serverとの接続方式、主要API、データとセキュリティの原則までを定義する。全DTOの厳密なschema、DBのDDL、Codexプロンプト本文、ワーカー製品の選定は対象Phaseで詳細化する。
 
+用語の意味は[バックエンド用語解説集](./backend-glossary.md)を参照する。
+
 ## 1. 責務
 
 バックエンドはブラウザとCodex App Serverの境界となり、以下を担当する。

@@ -136,7 +136,9 @@ Viewer
 ## 8. 仕様書一覧
 
 - [フロントエンド仕様](./frontend-spec.md)
+- [フロントエンド用語解説集](./frontend-glossary.md)
 - [バックエンド仕様](./backend-spec.md)
+- [バックエンド用語解説集](./backend-glossary.md)
 
 ## 9. 要求確定前の論点
 
