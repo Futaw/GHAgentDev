@@ -62,6 +62,8 @@ flowchart LR
 
 ### Phase 1: Repository管理
 
+具体的なAPI、状態遷移、セキュリティ制約、画面仕様、Pull Request分割は[Phase 1詳細仕様](./phase-1-spec.md)を正本とする。
+
 - GitHub URL登録
 - 入力URLの厳密な検証
 - 管理対象ディレクトリへのClone
@@ -135,6 +137,7 @@ Viewer
 
 ## 8. 仕様書一覧
 
+- [Phase 1詳細仕様・Pull Request分割](./phase-1-spec.md)
 - [フロントエンド仕様](./frontend-spec.md)
 - [フロントエンド用語解説集](./frontend-glossary.md)
 - [バックエンド仕様](./backend-spec.md)
@@ -145,7 +148,7 @@ Viewer
 1. ローカル単一ユーザー向けを最終形とするか、将来SaaS化するか。
 2. Viewerの正本を構造化JSONとし、HTMLを導出データとする方針で良いか。
 3. UIライブラリはMUIを使うか、shadcn/ui + Tailwind CSSを使うか。本仕様では「コンポーネント層で隔離する」ところまでとする。
-4. 初期対応するRepositoryの最大容量、ファイル数、解析時間上限をどこに置くか。
+4. Repositoryの容量・ファイル数はPhase 1詳細仕様の初期値で開始する。Phase 2の解析時間上限はViewer生成仕様で決める。
 
 ## 10. 外部仕様
 

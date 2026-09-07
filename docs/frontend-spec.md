@@ -106,6 +106,8 @@ SSEイベントはバックエンドの内部JSON-RPCをそのまま表示せず
 
 ## 5. Phase 1: Repository画面
 
+Phase 1実装時の画面状態、ポーリング、エラー表示、テスト、Pull Request分割は[Phase 1詳細仕様](./phase-1-spec.md)を正本とする。
+
 ### 5.1 Repository一覧
 
 表示項目:

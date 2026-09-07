@@ -193,6 +193,8 @@ Message送信は長時間HTTP requestにせず、Turn作成後に`202 Accepted`�
 
 ## 6. Repository管理
 
+Phase 1実装時の詳細なDTO、状態遷移、Git実行制約、テスト、Pull Request分割は[Phase 1詳細仕様](./phase-1-spec.md)を正本とする。概要設計との差異がある場合は、オーバーエンジニアリングを避けて具体化したPhase 1詳細仕様を優先する。
+
 ### 6.1 API
 
 ```http
@@ -200,7 +202,6 @@ GET  /api/repositories
 POST /api/repositories
 GET  /api/repositories/{repository_id}
 POST /api/repositories/{repository_id}/sync
-GET  /api/repositories/{repository_id}/sync/events
 ```
 
 ### 6.2 URL validation
