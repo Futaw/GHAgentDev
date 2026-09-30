@@ -1,6 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.1
+- 文書バージョン: v0.2
+- 更新日: 2026-09-30
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -200,8 +201,9 @@ GET  /api/repositories
 POST /api/repositories
 GET  /api/repositories/{repository_id}
 POST /api/repositories/{repository_id}/sync
-GET  /api/repositories/{repository_id}/sync/events
 ```
+
+Phase 1はRepository詳細のREST pollingでClone/Sync状態を取得する。`sync/events`は詳細な進捗表示が必要になった時点で追加する候補とし、Phase 1では実装しない。厳密な契約は[Phase 1 詳細設計書](./phase-1-detailed-design.md)を参照する。
 
 ### 6.2 URL validation
 
