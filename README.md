@@ -1,6 +1,6 @@
 # RepoSpec Viewer
 
-GitHub RepositoryのソースコードをCodex App Serverで調査し、読みやすい仕様書として閲覧するためのWebアプリです。現在はPhase 0として、React → FastAPI → Codex App Serverの接続と最小チャットを実装しています。
+GitHub RepositoryのソースコードをCodex App Serverで調査し、読みやすい仕様書として閲覧するためのWebアプリです。Phase 0のReact → FastAPI → Codex App Server接続と最小チャットは実装済みで、現在はPhase 1のRepository管理を設計しています。
 
 ## Phase 0で利用できる機能
 
@@ -63,3 +63,4 @@ Codex App ServerとのJSONL結合テストはfake app-serverを使用するた�
 - [概要仕様](./docs/README.md)
 - [バックエンド仕様](./docs/backend-spec.md)
 - [フロントエンド仕様](./docs/frontend-spec.md)
+- [Phase 1 詳細設計書](./docs/phase-1-detailed-design.md)
