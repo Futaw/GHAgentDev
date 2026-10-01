@@ -140,6 +140,7 @@ Viewer
 - [バックエンド仕様](./backend-spec.md)
 - [バックエンド用語解説集](./backend-glossary.md)
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
+- [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
 Phaseごとの実装開始前に詳細設計書を追加し、スコープ、状態、API、データ、処理、画面、テスト、完了条件を確定する。
 
