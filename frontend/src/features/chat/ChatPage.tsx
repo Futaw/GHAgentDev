@@ -1,7 +1,7 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { FormEvent, useEffect, useReducer, useRef, useState } from 'react'
 import { api } from '../../lib/api'
-import type { ChatMessage, ChatSession, Health, TurnAccepted } from '../../lib/types'
+import type { ChatMessage, ChatSession, TurnAccepted } from '../../lib/types'
 import { chatReducer, initialChatState } from './chatReducer'
 
 const newOptimisticMessage = (role: 'user' | 'assistant', content: string): ChatMessage => ({
@@ -21,11 +21,6 @@ export function ChatPage() {
   const [state, dispatch] = useReducer(chatReducer, initialChatState)
   const endRef = useRef<HTMLDivElement>(null)
   const sessionRequestedRef = useRef(false)
-  const health = useQuery({
-    queryKey: ['health'],
-    queryFn: () => api<Health>('/api/health'),
-    refetchInterval: 5_000,
-  })
   const createSession = useMutation({
     mutationFn: () => api<ChatSession>('/api/chat/sessions', { method: 'POST' }),
     onSuccess: (session) => setSessionId(session.id),
@@ -111,12 +106,6 @@ export function ChatPage() {
 
   return (
     <main className="chat-shell">
-      <header className="app-header">
-        <div><span className="mark">R</span><strong>RepoSpec Viewer</strong><small>Phase 0 · 接続検証</small></div>
-        <div className={`connection ${health.data?.app_server_connected ? '' : 'offline'}`} role="status">
-          <span /> {health.data?.app_server_connected ? 'App Server 接続済み' : 'App Server 未接続'}
-        </div>
-      </header>
       <section className="chat-panel" aria-label="Codexとのチャット">
         <div className="chat-intro">
           <span className="eyebrow">READ-ONLY WORKSPACE</span>

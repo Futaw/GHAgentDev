@@ -5,6 +5,7 @@ export type ProblemDetails = {
   code: string
   retryable: boolean
   trace_id: string
+  repository_id?: string
 }
 export class ApiError extends Error {
   constructor(readonly problem: ProblemDetails) {
