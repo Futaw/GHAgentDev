@@ -1,0 +1,1788 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Repospec Viewer Screen Guide</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Repospec Viewer Screen Guide" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Repospec Viewer Screen Guide&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;rsv-screen-guide&quot;&gt;
+  &lt;style&gt;
+    #rsv-screen-guide {
+      color-scheme: light dark;
+      width: 100%;
+      color: light-dark(#20231f, #ecede8);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    #rsv-screen-guide * { box-sizing: border-box; }
+    #rsv-screen-guide button,
+    #rsv-screen-guide input,
+    #rsv-screen-guide select,
+    #rsv-screen-guide textarea { font: inherit; }
+    #rsv-screen-guide button { cursor: pointer; }
+    #rsv-screen-guide .rsv-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    #rsv-screen-guide .rsv-picker button {
+      border: 1px solid light-dark(#d8d7d0, #454841);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: light-dark(#4d514a, #d8dbd3);
+      background: light-dark(#f8f7f2, #272a26);
+    }
+    #rsv-screen-guide .rsv-picker button[aria-pressed=&quot;true&quot;] {
+      color: light-dark(#ffffff, #182018);
+      border-color: light-dark(#283628, #b8d2b4);
+      background: light-dark(#283628, #b8d2b4);
+    }
+    #rsv-screen-guide .rsv-window {
+      overflow: hidden;
+      border: 1px solid light-dark(#d7d5cd, #3d403a);
+      border-radius: 18px;
+      color: light-dark(#20231f, #ecede8);
+      background: light-dark(#f5f3ed, #1b1d1a);
+      box-shadow: 0 18px 48px light-dark(rgba(47, 46, 39, .09), rgba(0, 0, 0, .28));
+    }
+    #rsv-screen-guide .rsv-browserbar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 0 14px;
+      border-bottom: 1px solid light-dark(#dedcd4, #383b36);
+      background: light-dark(#ebe9e2, #242622);
+    }
+    #rsv-screen-guide .rsv-browserbar span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: light-dark(#c4c1b8, #5b5e57);
+    }
+    #rsv-screen-guide .rsv-address {
+      width: min(420px, 68%);
+      margin-left: 8px;
+      padding: 4px 10px;
+      border-radius: 7px;
+      color: light-dark(#777970, #aeb2a9);
+      background: light-dark(#f7f6f1, #1b1d1a);
+      font-size: 12px;
+    }
+    #rsv-screen-guide .rsv-appbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 66px;
+      padding: 12px 24px;
+      border-bottom: 1px solid light-dark(#dedcd4, #383b36);
+      background: light-dark(rgba(250, 249, 245, .96), rgba(31, 33, 29, .96));
+    }
+    #rsv-screen-guide .rsv-brand,
+    #rsv-screen-guide .rsv-nav,
+    #rsv-screen-guide .rsv-actions,
+    #rsv-screen-guide .rsv-inline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #rsv-screen-guide .rsv-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      color: #ffffff;
+      background: light-dark(#283628, #70906d);
+      font-family: Georgia, serif;
+      font-size: 20px;
+    }
+    #rsv-screen-guide .rsv-brand strong { font-family: Georgia, serif; font-weight: 500; }
+    #rsv-screen-guide .rsv-brand small { color: light-dark(#777970, #aeb2a9); }
+    #rsv-screen-guide .rsv-nav button {
+      border: 0;
+      padding: 8px 10px;
+      color: light-dark(#6d7169, #bfc2ba);
+      background: transparent;
+    }
+    #rsv-screen-guide .rsv-nav button.is-active {
+      color: light-dark(#283628, #c9ddc6);
+      border-bottom: 2px solid light-dark(#63805f, #9fc49a);
+    }
+    #rsv-screen-guide .rsv-main { padding: 30px clamp(18px, 4vw, 44px) 34px; }
+    #rsv-screen-guide .rsv-main-narrow { max-width: 760px; margin: 0 auto; }
+    #rsv-screen-guide .rsv-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    #rsv-screen-guide h1,
+    #rsv-screen-guide h2,
+    #rsv-screen-guide h3,
+    #rsv-screen-guide p { margin-top: 0; }
+    #rsv-screen-guide h1 {
+      margin-bottom: 8px;
+      font-family: Georgia, &#x27;Times New Roman&#x27;, serif;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.08;
+      font-weight: 400;
+    }
+    #rsv-screen-guide h2 { margin-bottom: 10px; font-size: 18px; font-weight: 500; }
+    #rsv-screen-guide h3 { margin-bottom: 8px; font-size: 15px; font-weight: 500; }
+    #rsv-screen-guide .rsv-muted { color: light-dark(#6c7068, #b1b5ac); }
+    #rsv-screen-guide .rsv-small { font-size: 12px; }
+    #rsv-screen-guide .rsv-primary,
+    #rsv-screen-guide .rsv-secondary,
+    #rsv-screen-guide .rsv-danger,
+    #rsv-screen-guide .rsv-icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 38px;
+      border-radius: 9px;
+      padding: 8px 13px;
+      font-weight: 500;
+    }
+    #rsv-screen-guide .rsv-primary {
+      border: 1px solid light-dark(#283628, #a9cba5);
+      color: light-dark(#ffffff, #172017);
+      background: light-dark(#283628, #a9cba5);
+    }
+    #rsv-screen-guide .rsv-secondary {
+      border: 1px solid light-dark(#d7d7cf, #4a4d47);
+      color: light-dark(#30372f, #dde2d9);
+      background: light-dark(#f8f7f2, #292c27);
+    }
+    #rsv-screen-guide .rsv-danger {
+      border: 1px solid light-dark(#e3c5be, #70453d);
+      color: light-dark(#8b4035, #f2b8ae);
+      background: light-dark(#fff6f3, #352420);
+    }
+    #rsv-screen-guide button:disabled { cursor: not-allowed; opacity: .45; }
+    #rsv-screen-guide .rsv-hotspot {
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      color: #ffffff;
+      background: light-dark(#7a5a91, #a883c1);
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 0 0 3px light-dark(rgba(122, 90, 145, .16), rgba(168, 131, 193, .18));
+    }
+    #rsv-screen-guide .rsv-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    #rsv-screen-guide .rsv-repo-row,
+    #rsv-screen-guide .rsv-panel,
+    #rsv-screen-guide .rsv-formbox,
+    #rsv-screen-guide .rsv-statusbox {
+      border: 1px solid light-dark(#dddbd3, #3e413b);
+      border-radius: 13px;
+      background: light-dark(#fffefb, #242723);
+    }
+    #rsv-screen-guide .rsv-repo-row {
+      display: grid;
+      grid-template-columns: minmax(170px, 1.5fr) repeat(3, minmax(90px, 1fr)) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+    #rsv-screen-guide .rsv-repo-row button { justify-self: end; }
+    #rsv-screen-guide .rsv-label { display: block; margin-bottom: 5px; color: light-dark(#777970, #aeb2a9); font-size: 11px; }
+    #rsv-screen-guide .rsv-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      color: light-dark(#355431, #c2dfbd);
+      background: light-dark(#edf4e9, #263524);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    #rsv-screen-guide .rsv-status::before { content: &#x27;&#x27;; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    #rsv-screen-guide .rsv-status.running { color: light-dark(#745d24, #efd890); background: light-dark(#fbf4dc, #3a311b); }
+    #rsv-screen-guide .rsv-status.failed { color: light-dark(#8b4035, #f2b8ae); background: light-dark(#fff0ec, #3a2420); }
+    #rsv-screen-guide .rsv-formbox { padding: 22px; }
+    #rsv-screen-guide .rsv-field { margin-bottom: 17px; }
+    #rsv-screen-guide .rsv-field label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 500; }
+    #rsv-screen-guide .rsv-field input,
+    #rsv-screen-guide .rsv-field select,
+    #rsv-screen-guide .rsv-field textarea {
+      width: 100%;
+      border: 1px solid light-dark(#cbc9c0, #52554e);
+      border-radius: 9px;
+      padding: 10px 11px;
+      color: light-dark(#20231f, #ecede8);
+      background: light-dark(#ffffff, #1c1e1b);
+    }
+    #rsv-screen-guide .rsv-field textarea { min-height: 90px; resize: vertical; }
+    #rsv-screen-guide .rsv-split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(230px, .8fr);
+      gap: 18px;
+    }
+    #rsv-screen-guide .rsv-panel { padding: 18px; }
+    #rsv-screen-guide .rsv-kv { display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 9px 0; border-bottom: 1px solid light-dark(#eceae3, #383b35); }
+    #rsv-screen-guide .rsv-kv:last-child { border-bottom: 0; }
+    #rsv-screen-guide .rsv-viewer-row { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 13px 0; border-bottom: 1px solid light-dark(#eceae3, #383b35); }
+    #rsv-screen-guide .rsv-viewer-row:last-child { border-bottom: 0; }
+    #rsv-screen-guide .rsv-progress-line { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 10px; padding: 10px 0; }
+    #rsv-screen-guide .rsv-stepdot { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: light-dark(#ffffff, #172017); background: light-dark(#5d7e58, #a9cba5); font-size: 11px; }
+    #rsv-screen-guide .rsv-stepdot.current { color: light-dark(#624e1d, #efd890); background: light-dark(#f6e9b7, #493a17); box-shadow: 0 0 0 4px light-dark(rgba(205, 174, 75, .14), rgba(239, 216, 144, .12)); }
+    #rsv-screen-guide .rsv-stepdot.waiting { color: light-dark(#8c8d86, #9fa39b); background: light-dark(#e6e4dc, #353832); }
+    #rsv-screen-guide .rsv-bar { height: 7px; overflow: hidden; border-radius: 99px; background: light-dark(#e4e2da, #363934); }
+    #rsv-screen-guide .rsv-bar span { display: block; width: 57%; height: 100%; background: light-dark(#6c8b67, #a9cba5); }
+    #rsv-screen-guide .rsv-doc-layout { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(260px, .75fr); min-height: 510px; }
+    #rsv-screen-guide .rsv-document { padding: 28px clamp(18px, 4vw, 42px); border-right: 1px solid light-dark(#dedcd4, #383b36); background: light-dark(#fffefb, #222420); }
+    #rsv-screen-guide .rsv-chatpane { display: flex; flex-direction: column; gap: 12px; padding: 20px; background: light-dark(#f4f3ed, #1d1f1c); }
+    #rsv-screen-guide .rsv-toc { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 0 18px; margin-bottom: 20px; border-bottom: 1px solid light-dark(#e6e4dd, #383b35); color: light-dark(#557151, #b5d0b1); font-size: 12px; }
+    #rsv-screen-guide .rsv-flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: center; margin: 18px 0; }
+    #rsv-screen-guide .rsv-flow div { padding: 12px; text-align: center; border: 1px solid light-dark(#cfd4ca, #4a5548); border-radius: 9px; background: light-dark(#f3f7f0, #283127); }
+    #rsv-screen-guide .rsv-message { max-width: 92%; padding: 10px 12px; border-radius: 12px; background: light-dark(#ffffff, #292c27); }
+    #rsv-screen-guide .rsv-message.user { margin-left: auto; color: light-dark(#ffffff, #172017); background: light-dark(#334333, #a9cba5); }
+    #rsv-screen-guide .rsv-source-link { display: inline-flex; align-items: center; gap: 6px; border: 0; padding: 6px 8px; color: light-dark(#4c6b49, #b9d5b5); background: transparent; text-decoration: underline; }
+    #rsv-screen-guide .rsv-chatinput { margin-top: auto; }
+    #rsv-screen-guide .rsv-chatinput textarea { width: 100%; min-height: 72px; border: 1px solid light-dark(#cbc9c0, #52554e); border-radius: 10px; padding: 10px; color: inherit; background: light-dark(#ffffff, #242723); resize: vertical; }
+    #rsv-screen-guide .rsv-code { overflow-x: auto; margin: 0; padding: 18px; border-radius: 10px; color: light-dark(#2c352b, #dae6d7); background: light-dark(#eff2eb, #161916); font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #rsv-screen-guide .rsv-code .hl { display: block; margin: 0 -18px; padding: 0 18px; background: light-dark(#fff2bd, #453b18); }
+    #rsv-screen-guide .rsv-login {
+      display: grid;
+      place-items: center;
+      min-height: 530px;
+      padding: 32px 18px;
+      background:
+        radial-gradient(circle at 18% 18%, light-dark(rgba(160,180,147,.28), rgba(112,144,109,.14)), transparent 35%),
+        radial-gradient(circle at 88% 85%, light-dark(rgba(208,173,127,.20), rgba(130,95,58,.13)), transparent 30%),
+        light-dark(#f5f3ed, #1b1d1a);
+    }
+    #rsv-screen-guide .rsv-loginbox { width: min(100%, 470px); padding: 38px; border: 1px solid light-dark(#d8d6cf, #444740); border-radius: 20px; background: light-dark(rgba(255,255,252,.92), rgba(38,41,36,.94)); box-shadow: 0 24px 70px light-dark(rgba(50,48,40,.09), rgba(0,0,0,.28)); }
+    #rsv-screen-guide .rsv-loginbox h1 { font-size: clamp(35px, 6vw, 54px); }
+    #rsv-screen-guide .rsv-eyebrow { color: light-dark(#68735e, #aec2aa); font-size: 11px; font-weight: 500; letter-spacing: .16em; }
+    #rsv-screen-guide .rsv-notice { padding: 11px 12px; border-radius: 9px; color: light-dark(#46503f, #d6dfd2); background: light-dark(#eef1e9, #2b3329); font-size: 13px; }
+    #rsv-screen-guide .rsv-chatpage { display: grid; grid-template-rows: auto 1fr auto; gap: 16px; max-width: 830px; min-height: 470px; margin: 0 auto; }
+    #rsv-screen-guide .rsv-chatlog { padding: 10px 2px; }
+    #rsv-screen-guide .rsv-guide {
+      display: grid;
+      grid-template-columns: minmax(180px, .7fr) minmax(0, 2fr);
+      gap: 16px;
+      padding: 18px 22px;
+      border-top: 1px solid light-dark(#d7d5cd, #3d403a);
+      background: light-dark(#eeece5, #20231f);
+    }
+    #rsv-screen-guide .rsv-guide-title { display: flex; align-items: center; gap: 9px; }
+    #rsv-screen-guide .rsv-guide-title strong { font-family: Georgia, serif; font-weight: 500; }
+    #rsv-screen-guide .rsv-guide-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+    #rsv-screen-guide .rsv-guide-item { display: flex; align-items: flex-start; gap: 9px; color: light-dark(#4d514a, #cfd2ca); font-size: 13px; line-height: 1.45; }
+    #rsv-screen-guide .rsv-empty { padding: 30px 18px; text-align: center; color: light-dark(#74776f, #aeb2a9); }
+    @media (max-width: 760px) {
+      #rsv-screen-guide .rsv-appbar,
+      #rsv-screen-guide .rsv-heading { align-items: flex-start; flex-direction: column; }
+      #rsv-screen-guide .rsv-repo-row { grid-template-columns: 1fr 1fr; }
+      #rsv-screen-guide .rsv-repo-row &gt; :first-child { grid-column: 1 / -1; }
+      #rsv-screen-guide .rsv-repo-row button { justify-self: start; }
+      #rsv-screen-guide .rsv-split,
+      #rsv-screen-guide .rsv-doc-layout,
+      #rsv-screen-guide .rsv-guide { grid-template-columns: 1fr; }
+      #rsv-screen-guide .rsv-document { border-right: 0; border-bottom: 1px solid light-dark(#dedcd4, #383b36); }
+      #rsv-screen-guide .rsv-guide-list { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 460px) {
+      #rsv-screen-guide .rsv-main { padding: 22px 14px 26px; }
+      #rsv-screen-guide .rsv-grid,
+      #rsv-screen-guide .rsv-repo-row,
+      #rsv-screen-guide .rsv-flow { grid-template-columns: 1fr; }
+      #rsv-screen-guide .rsv-kv { grid-template-columns: 1fr; gap: 3px; }
+      #rsv-screen-guide .rsv-loginbox { padding: 26px 20px; }
+    }
+  &lt;/style&gt;
+
+  &lt;nav class=&quot;rsv-picker&quot; aria-label=&quot;画面を選択&quot;&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;login&quot;&gt;1 ログイン&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;chat&quot;&gt;2 チャット&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;repositories&quot; aria-pressed=&quot;true&quot;&gt;3 Repository一覧&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;repository-new&quot;&gt;4 Repository登録&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;repository-detail&quot;&gt;5 Dashboard&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;viewer-new&quot;&gt;6 Viewer作成&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;job&quot;&gt;7 生成進捗&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;viewer&quot;&gt;8 Viewer・Q&amp;amp;A&lt;/button&gt;
+    &lt;button type=&quot;button&quot; data-screen=&quot;source&quot;&gt;9 ソース表示&lt;/button&gt;
+  &lt;/nav&gt;
+
+  &lt;section class=&quot;rsv-window&quot; aria-live=&quot;polite&quot;&gt;
+    &lt;div class=&quot;rsv-browserbar&quot; aria-hidden=&quot;true&quot;&gt;
+      &lt;span&gt;&lt;/span&gt;&lt;span&gt;&lt;/span&gt;&lt;span&gt;&lt;/span&gt;
+      &lt;div class=&quot;rsv-address&quot; id=&quot;rsv-address&quot;&gt;localhost:5173/repositories&lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div id=&quot;rsv-stage&quot;&gt;&lt;/div&gt;
+    &lt;aside class=&quot;rsv-guide&quot; aria-label=&quot;この画面での操作&quot;&gt;
+      &lt;div class=&quot;rsv-guide-title&quot;&gt;&lt;i data-lucide=&quot;mouse-pointer-click&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;strong id=&quot;rsv-guide-heading&quot;&gt;この画面での操作&lt;/strong&gt;&lt;/div&gt;
+      &lt;div class=&quot;rsv-guide-list&quot; id=&quot;rsv-guide-list&quot;&gt;&lt;/div&gt;
+    &lt;/aside&gt;
+  &lt;/section&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;rsv-screen-guide&#x27;);
+      const stage = document.getElementById(&#x27;rsv-stage&#x27;);
+      const address = document.getElementById(&#x27;rsv-address&#x27;);
+      const guideList = document.getElementById(&#x27;rsv-guide-list&#x27;);
+      const guideHeading = document.getElementById(&#x27;rsv-guide-heading&#x27;);
+
+      const hotspot = (n) =&gt; `&lt;span class=&quot;rsv-hotspot&quot; aria-hidden=&quot;true&quot;&gt;${n}&lt;/span&gt;`;
+      const appbar = (active = &#x27;repositories&#x27;) =&gt; `
+        &lt;header class=&quot;rsv-appbar&quot;&gt;
+          &lt;div class=&quot;rsv-brand&quot;&gt;
+            &lt;span class=&quot;rsv-mark&quot;&gt;R&lt;/span&gt;
+            &lt;div&gt;&lt;strong&gt;RepoSpec Viewer&lt;/strong&gt;&lt;br&gt;&lt;small&gt;Source to specification&lt;/small&gt;&lt;/div&gt;
+          &lt;/div&gt;
+          &lt;nav class=&quot;rsv-nav&quot; aria-label=&quot;アプリ内ナビゲーション&quot;&gt;
+            &lt;button type=&quot;button&quot; data-nav=&quot;repositories&quot; class=&quot;${active === &#x27;repositories&#x27; ? &#x27;is-active&#x27; : &#x27;&#x27;}&quot;&gt;Repositories&lt;/button&gt;
+            &lt;button type=&quot;button&quot; data-nav=&quot;chat&quot; class=&quot;${active === &#x27;chat&#x27; ? &#x27;is-active&#x27; : &#x27;&#x27;}&quot;&gt;Chat&lt;/button&gt;
+          &lt;/nav&gt;
+          &lt;div class=&quot;rsv-inline&quot;&gt;&lt;span class=&quot;rsv-status&quot;&gt;Codex接続済み&lt;/span&gt;&lt;/div&gt;
+        &lt;/header&gt;`;
+
+      const screens = {
+        login: {
+          route: &#x27;/login&#x27;,
+          guide: &#x27;ログイン画面での操作&#x27;,
+          notes: [
+            &#x27;ChatGPT認証の状態を確認します。未認証・認証中・期限切れ・接続エラーを区別します。&#x27;,
+            &#x27;「ChatGPTでログイン」で認証ページを開きます。認証成功後はRepository一覧へ進みます。&#x27;,
+            &#x27;接続に失敗した場合は入力内容を失わず、状態の再確認を行います。&#x27;
+          ],
+          html: `
+            &lt;main class=&quot;rsv-login&quot;&gt;
+              &lt;section class=&quot;rsv-loginbox&quot;&gt;
+                &lt;div class=&quot;rsv-eyebrow&quot;&gt;REPOSITORY INTELLIGENCE&lt;/div&gt;
+                &lt;h1&gt;コードを、読める仕様へ。&lt;/h1&gt;
+                &lt;p class=&quot;rsv-muted&quot;&gt;GitHub RepositoryをCodexが調査し、根拠付きの仕様書として整理します。&lt;/p&gt;
+                &lt;div class=&quot;rsv-inline&quot; style=&quot;margin:18px 0 12px&quot;&gt;&lt;span class=&quot;rsv-status running&quot;&gt;未認証&lt;/span&gt;${hotspot(1)}&lt;/div&gt;
+                &lt;p class=&quot;rsv-notice&quot;&gt;利用にはChatGPTアカウントでの認証が必要です。認証情報はこのアプリへ保存しません。&lt;/p&gt;
+                &lt;div class=&quot;rsv-inline&quot; style=&quot;margin-top:18px&quot;&gt;
+                  &lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;repositories&quot;&gt;&lt;i data-lucide=&quot;log-in&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;ChatGPTでログイン&lt;/button&gt;${hotspot(2)}
+                  &lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;状態を再確認&lt;/button&gt;${hotspot(3)}
+                &lt;/div&gt;
+              &lt;/section&gt;
+            &lt;/main&gt;`
+        },
+        chat: {
+          route: &#x27;/chat&#x27;,
+          guide: &#x27;チャット画面での操作&#x27;,
+          notes: [
+            &#x27;Codex App Serverとの接続確認や、簡単なRepository調査を会話形式で試します。&#x27;,
+            &#x27;質問を入力して送信すると、回答が逐次表示されます。実行中は中止できます。&#x27;,
+            &#x27;本機能は接続確認用です。正式な成果物はViewer作成画面から生成します。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;chat&#x27;)}
+            &lt;main class=&quot;rsv-main&quot;&gt;
+              &lt;div class=&quot;rsv-chatpage&quot;&gt;
+                &lt;div class=&quot;rsv-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;Codex Chat&lt;/h1&gt;&lt;p class=&quot;rsv-muted&quot;&gt;接続確認と簡単なソース調査&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;rsv-inline&quot;&gt;&lt;span class=&quot;rsv-status&quot;&gt;接続済み&lt;/span&gt;${hotspot(1)}&lt;/div&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-chatlog&quot;&gt;
+                  &lt;div class=&quot;rsv-message user&quot;&gt;このRepositoryの構成を要約してください。&lt;/div&gt;
+                  &lt;div class=&quot;rsv-message&quot;&gt;React + TypeScriptのフロントエンドと、FastAPIのバックエンドで構成されています。Codex App Serverはバックエンドからread-onlyで利用されています。&lt;/div&gt;
+                &lt;/div&gt;
+                &lt;div class=&quot;rsv-formbox&quot;&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-chat-question&quot;&gt;Codexへの質問&lt;/label&gt;&lt;textarea id=&quot;rsv-chat-question&quot; placeholder=&quot;調べたい内容を入力&quot;&gt;&lt;/textarea&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot;&gt;&lt;i data-lucide=&quot;send&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;送信&lt;/button&gt;${hotspot(2)}&lt;button type=&quot;button&quot; class=&quot;rsv-danger&quot; disabled&gt;中止&lt;/button&gt;&lt;/div&gt;
+                  &lt;p class=&quot;rsv-small rsv-muted&quot; style=&quot;margin-top:12px&quot;&gt;仕様書を残す場合はRepositoriesからViewerを作成します。 ${hotspot(3)}&lt;/p&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/main&gt;`
+        },
+        repositories: {
+          route: &#x27;/repositories&#x27;,
+          guide: &#x27;Repository一覧での操作&#x27;,
+          notes: [
+            &#x27;登録済みRepositoryのClone/Sync状態、Branch、Commit SHA、最終同期日時を確認します。&#x27;,
+            &#x27;「Repositoryを登録」からPublic GitHub Repositoryを追加します。&#x27;,
+            &#x27;行の「開く」からDashboardへ移動し、同期やViewer作成を行います。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;main class=&quot;rsv-main&quot;&gt;
+              &lt;div class=&quot;rsv-heading&quot;&gt;
+                &lt;div&gt;&lt;h1&gt;Repositories&lt;/h1&gt;&lt;p class=&quot;rsv-muted&quot;&gt;解析対象のRepositoryと最新状態を管理します。&lt;/p&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-inline&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;repository-new&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Repositoryを登録&lt;/button&gt;${hotspot(2)}&lt;/div&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;rsv-repo-row&quot;&gt;
+                &lt;div&gt;&lt;strong&gt;Futaw/GHAgentDev&lt;/strong&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;github.com/Futaw/GHAgentDev&lt;/div&gt;&lt;/div&gt;
+                &lt;div&gt;&lt;span class=&quot;rsv-label&quot;&gt;状態&lt;/span&gt;&lt;span class=&quot;rsv-status&quot;&gt;Ready&lt;/span&gt;${hotspot(1)}&lt;/div&gt;
+                &lt;div&gt;&lt;span class=&quot;rsv-label&quot;&gt;Branch&lt;/span&gt;&lt;code&gt;main&lt;/code&gt;&lt;/div&gt;
+                &lt;div&gt;&lt;span class=&quot;rsv-label&quot;&gt;Commit / 同期&lt;/span&gt;&lt;code&gt;2790172&lt;/code&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;2分前&lt;/div&gt;&lt;/div&gt;
+                &lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;repository-detail&quot;&gt;開く ${hotspot(3)}&lt;/button&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;rsv-repo-row&quot;&gt;
+                &lt;div&gt;&lt;strong&gt;openai/codex&lt;/strong&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;github.com/openai/codex&lt;/div&gt;&lt;/div&gt;
+                &lt;div&gt;&lt;span class=&quot;rsv-label&quot;&gt;状態&lt;/span&gt;&lt;span class=&quot;rsv-status running&quot;&gt;Syncing&lt;/span&gt;&lt;/div&gt;
+                &lt;div&gt;&lt;span class=&quot;rsv-label&quot;&gt;Branch&lt;/span&gt;&lt;code&gt;main&lt;/code&gt;&lt;/div&gt;
+                &lt;div&gt;&lt;span class=&quot;rsv-label&quot;&gt;Commit / 同期&lt;/span&gt;&lt;code&gt;47aa3be&lt;/code&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;確認中…&lt;/div&gt;&lt;/div&gt;
+                &lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; disabled&gt;処理中&lt;/button&gt;
+              &lt;/div&gt;
+            &lt;/main&gt;`
+        },
+        &#x27;repository-new&#x27;: {
+          route: &#x27;/repositories/new&#x27;,
+          guide: &#x27;Repository登録での操作&#x27;,
+          notes: [
+            &#x27;Public GitHub RepositoryのHTTPS URLを入力します。SSH URL、ローカルパス、Private Repositoryは対象外です。&#x27;,
+            &#x27;登録するとDashboardへ移動し、バックエンドでCloneが開始されます。&#x27;,
+            &#x27;キャンセルすると一覧へ戻ります。入力値は外部へ送信されません。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;main class=&quot;rsv-main rsv-main-narrow&quot;&gt;
+              &lt;div class=&quot;rsv-heading&quot;&gt;&lt;div&gt;&lt;h1&gt;Repositoryを登録&lt;/h1&gt;&lt;p class=&quot;rsv-muted&quot;&gt;解析するPublic GitHub Repositoryを追加します。&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;
+              &lt;section class=&quot;rsv-formbox&quot;&gt;
+                &lt;div class=&quot;rsv-field&quot;&gt;
+                  &lt;label for=&quot;rsv-repo-url&quot;&gt;GitHub URL ${hotspot(1)}&lt;/label&gt;
+                  &lt;input id=&quot;rsv-repo-url&quot; value=&quot;https://github.com/Futaw/GHAgentDev&quot; aria-describedby=&quot;rsv-url-help&quot;&gt;
+                  &lt;div id=&quot;rsv-url-help&quot; class=&quot;rsv-small rsv-muted&quot; style=&quot;margin-top:6px&quot;&gt;形式: https://github.com/owner/repository&lt;/div&gt;
+                &lt;/div&gt;
+                &lt;p class=&quot;rsv-notice&quot;&gt;&lt;strong&gt;Public Repositoryのみ&lt;/strong&gt;&lt;br&gt;Private Repositoryの認証、submodule、Git LFSは初期版では利用できません。&lt;/p&gt;
+                &lt;div class=&quot;rsv-actions&quot; style=&quot;margin-top:18px&quot;&gt;
+                  &lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;repository-detail&quot;&gt;&lt;i data-lucide=&quot;download&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;登録してClone&lt;/button&gt;${hotspot(2)}
+                  &lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;repositories&quot;&gt;キャンセル&lt;/button&gt;${hotspot(3)}
+                &lt;/div&gt;
+              &lt;/section&gt;
+            &lt;/main&gt;`
+        },
+        &#x27;repository-detail&#x27;: {
+          route: &#x27;/repositories/8d66ac14&#x27;,
+          guide: &#x27;Repository Dashboardでの操作&#x27;,
+          notes: [
+            &#x27;「最新コードを取得」でoriginのDefault Branchへ同期します。処理中は二重操作できません。&#x27;,
+            &#x27;「Viewerを作成」から、説明してほしい機能や読者などの生成条件を指定します。&#x27;,
+            &#x27;過去に生成したViewerを一覧から開きます。各Viewerは生成時点のCommit SHAを保持します。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;main class=&quot;rsv-main&quot;&gt;
+              &lt;div class=&quot;rsv-heading&quot;&gt;
+                &lt;div&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;Futaw /&lt;/div&gt;&lt;h1&gt;GHAgentDev&lt;/h1&gt;&lt;div class=&quot;rsv-inline&quot;&gt;&lt;span class=&quot;rsv-status&quot;&gt;Ready&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;最終同期 2026/10/01 09:42&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;最新コードを取得&lt;/button&gt;${hotspot(1)}&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;viewer-new&quot;&gt;&lt;i data-lucide=&quot;file-plus-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Viewerを作成&lt;/button&gt;${hotspot(2)}&lt;/div&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;rsv-split&quot;&gt;
+                &lt;section&gt;
+                  &lt;div class=&quot;rsv-panel&quot;&gt;
+                    &lt;h2&gt;Viewer&lt;/h2&gt;
+                    &lt;div class=&quot;rsv-viewer-row&quot;&gt;&lt;div&gt;&lt;strong&gt;Phase 1 Repository管理仕様&lt;/strong&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;機能仕様・標準・エンジニア向け&lt;/div&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;viewer&quot;&gt;開く ${hotspot(3)}&lt;/button&gt;&lt;/div&gt;
+                    &lt;div class=&quot;rsv-viewer-row&quot;&gt;&lt;div&gt;&lt;strong&gt;Codex接続処理の解説&lt;/strong&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;技術解説・詳細・初学者向け&lt;/div&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;viewer&quot;&gt;開く&lt;/button&gt;&lt;/div&gt;
+                  &lt;/div&gt;
+                &lt;/section&gt;
+                &lt;aside class=&quot;rsv-panel&quot;&gt;
+                  &lt;h2&gt;Repository情報&lt;/h2&gt;
+                  &lt;div class=&quot;rsv-kv&quot;&gt;&lt;span class=&quot;rsv-muted&quot;&gt;GitHub&lt;/span&gt;&lt;span&gt;Futaw/GHAgentDev&lt;/span&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-kv&quot;&gt;&lt;span class=&quot;rsv-muted&quot;&gt;Default Branch&lt;/span&gt;&lt;code&gt;main&lt;/code&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-kv&quot;&gt;&lt;span class=&quot;rsv-muted&quot;&gt;Commit SHA&lt;/span&gt;&lt;code&gt;2790172…&lt;/code&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-kv&quot;&gt;&lt;span class=&quot;rsv-muted&quot;&gt;Viewer&lt;/span&gt;&lt;span&gt;2件&lt;/span&gt;&lt;/div&gt;
+                &lt;/aside&gt;
+              &lt;/div&gt;
+            &lt;/main&gt;`
+        },
+        &#x27;viewer-new&#x27;: {
+          route: &#x27;/repositories/8d66ac14/viewers/new&#x27;,
+          guide: &#x27;Viewer作成での操作&#x27;,
+          notes: [
+            &#x27;Codexに調査してほしい機能・処理を具体的に入力します。&#x27;,
+            &#x27;文書種別、詳細度、対象読者、テーマを選ぶと、同じ調査内容でも説明の構成を調整できます。&#x27;,
+            &#x27;「生成を開始」でGeneration Jobを作成し、進捗画面へ移動します。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;main class=&quot;rsv-main rsv-main-narrow&quot;&gt;
+              &lt;div class=&quot;rsv-heading&quot;&gt;&lt;div&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;Futaw/GHAgentDev&lt;/div&gt;&lt;h1&gt;Viewerを作成&lt;/h1&gt;&lt;p class=&quot;rsv-muted&quot;&gt;Repositoryのどの部分を、誰向けに説明するか指定します。&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;
+              &lt;section class=&quot;rsv-formbox&quot;&gt;
+                &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-request&quot;&gt;調べたい機能・処理 ${hotspot(1)}&lt;/label&gt;&lt;textarea id=&quot;rsv-request&quot;&gt;Repository登録からClone、Sync完了までの処理と、エラー時の状態遷移を説明してください。&lt;/textarea&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-grid&quot;&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-document-type&quot;&gt;文書種別&lt;/label&gt;&lt;select id=&quot;rsv-document-type&quot;&gt;&lt;option&gt;機能仕様書&lt;/option&gt;&lt;option&gt;技術解説&lt;/option&gt;&lt;option&gt;処理フロー&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-detail-level&quot;&gt;詳細度&lt;/label&gt;&lt;select id=&quot;rsv-detail-level&quot;&gt;&lt;option&gt;標準&lt;/option&gt;&lt;option&gt;概要&lt;/option&gt;&lt;option&gt;詳細&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-audience&quot;&gt;対象読者 ${hotspot(2)}&lt;/label&gt;&lt;select id=&quot;rsv-audience&quot;&gt;&lt;option&gt;エンジニア&lt;/option&gt;&lt;option&gt;初学者&lt;/option&gt;&lt;option&gt;プロダクト担当者&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-theme&quot;&gt;テーマ&lt;/label&gt;&lt;select id=&quot;rsv-theme&quot;&gt;&lt;option&gt;Technical Light&lt;/option&gt;&lt;option&gt;Editorial&lt;/option&gt;&lt;option&gt;Compact&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+                &lt;/div&gt;
+                &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-extra&quot;&gt;追加指示（任意）&lt;/label&gt;&lt;textarea id=&quot;rsv-extra&quot; placeholder=&quot;特に重視する観点や、含めてほしい図など&quot;&gt;&lt;/textarea&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;job&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;生成を開始&lt;/button&gt;${hotspot(3)}&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;repository-detail&quot;&gt;戻る&lt;/button&gt;&lt;/div&gt;
+              &lt;/section&gt;
+            &lt;/main&gt;`
+        },
+        job: {
+          route: &#x27;/jobs/01j-generation&#x27;,
+          guide: &#x27;生成進捗画面での操作&#x27;,
+          notes: [
+            &#x27;Repository調査、文書検証、HTML生成など、現在の処理段階を確認します。&#x27;,
+            &#x27;必要な場合は生成を中止できます。画面を閉じてもJob自体は継続します。&#x27;,
+            &#x27;完了するとViewerへ自動遷移します。失敗時は保存済み条件から再試行できます。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;main class=&quot;rsv-main rsv-main-narrow&quot;&gt;
+              &lt;div class=&quot;rsv-heading&quot;&gt;&lt;div&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;Futaw/GHAgentDev&lt;/div&gt;&lt;h1&gt;仕様書を生成しています&lt;/h1&gt;&lt;p class=&quot;rsv-muted&quot;&gt;Phase 1 Repository管理仕様&lt;/p&gt;&lt;/div&gt;&lt;div class=&quot;rsv-inline&quot;&gt;&lt;span class=&quot;rsv-status running&quot;&gt;Running&lt;/span&gt;${hotspot(1)}&lt;/div&gt;&lt;/div&gt;
+              &lt;section class=&quot;rsv-statusbox&quot; style=&quot;padding:22px&quot;&gt;
+                &lt;div class=&quot;rsv-inline&quot; style=&quot;justify-content:space-between&quot;&gt;&lt;strong&gt;全体の進捗&lt;/strong&gt;&lt;span class=&quot;rsv-muted&quot;&gt;4 / 7&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-bar&quot; style=&quot;margin:10px 0 18px&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot&quot;&gt;✓&lt;/span&gt;&lt;span&gt;Workspaceを準備&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;完了&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot&quot;&gt;✓&lt;/span&gt;&lt;span&gt;Codex Threadを開始&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;完了&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot&quot;&gt;✓&lt;/span&gt;&lt;span&gt;Repositoryを調査&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;完了&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot current&quot;&gt;4&lt;/span&gt;&lt;span&gt;&lt;strong&gt;構造化文書を検証&lt;/strong&gt;&lt;br&gt;&lt;span class=&quot;rsv-small rsv-muted&quot;&gt;参照ファイルと行範囲を確認中…&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;処理中&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot waiting&quot;&gt;5&lt;/span&gt;&lt;span&gt;HTMLを生成&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;待機&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot waiting&quot;&gt;6&lt;/span&gt;&lt;span&gt;HTMLをサニタイズ&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;待機&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-progress-line&quot;&gt;&lt;span class=&quot;rsv-stepdot waiting&quot;&gt;7&lt;/span&gt;&lt;span&gt;Viewerを保存&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;待機&lt;/span&gt;&lt;/div&gt;
+              &lt;/section&gt;
+              &lt;div class=&quot;rsv-actions&quot; style=&quot;margin-top:16px&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-danger&quot;&gt;生成を中止&lt;/button&gt;${hotspot(2)}&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;viewer&quot;&gt;完了後のViewerを開く ${hotspot(3)}&lt;/button&gt;&lt;/div&gt;
+            &lt;/main&gt;`
+        },
+        viewer: {
+          route: &#x27;/viewers/01j-viewer&#x27;,
+          guide: &#x27;Viewer・Q&amp;A画面での操作&#x27;,
+          notes: [
+            &#x27;左側で生成済み仕様書を閲覧し、目次やソース参照から目的の箇所へ移動します。&#x27;,
+            &#x27;右側のAsk Codexで、Viewer内容や生成元Commitについて追加質問します。&#x27;,
+            &#x27;ソース参照を開くと、根拠になったファイルと行範囲を確認できます。ヘッダーでは再生成・テーマ変更等を行います。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;div class=&quot;rsv-appbar&quot; style=&quot;min-height:auto&quot;&gt;
+              &lt;div&gt;&lt;strong&gt;Phase 1 Repository管理仕様&lt;/strong&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;GHAgentDev · main · 2790172 · 機能仕様&lt;/div&gt;&lt;/div&gt;
+              &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;テーマ&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;再生成&lt;/button&gt;${hotspot(3)}&lt;button type=&quot;button&quot; class=&quot;rsv-danger&quot;&gt;削除&lt;/button&gt;&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;main class=&quot;rsv-doc-layout&quot;&gt;
+              &lt;article class=&quot;rsv-document&quot;&gt;
+                &lt;div class=&quot;rsv-eyebrow&quot;&gt;FUNCTIONAL SPECIFICATION&lt;/div&gt;
+                &lt;h1&gt;Repository登録・同期&lt;/h1&gt;
+                &lt;p class=&quot;rsv-muted&quot;&gt;Public GitHub Repositoryを安全に登録し、管理WorkspaceへClone・Syncする処理です。&lt;/p&gt;
+                &lt;nav class=&quot;rsv-toc&quot;&gt;&lt;span&gt;概要&lt;/span&gt;&lt;span&gt;処理フロー&lt;/span&gt;&lt;span&gt;状態遷移&lt;/span&gt;&lt;span&gt;エラー&lt;/span&gt;${hotspot(1)}&lt;/nav&gt;
+                &lt;h2&gt;処理フロー&lt;/h2&gt;
+                &lt;div class=&quot;rsv-flow&quot;&gt;&lt;div&gt;URL検証&lt;/div&gt;&lt;div&gt;非同期Clone&lt;/div&gt;&lt;div&gt;Commit保存&lt;/div&gt;&lt;/div&gt;
+                &lt;p&gt;登録APIはURLを正規化してDB行を作成し、Cloneをバックグラウンドで開始します。画面は処理中だけ状態を再取得します。&lt;/p&gt;
+                &lt;h2&gt;主な状態&lt;/h2&gt;
+                &lt;p&gt;&lt;code&gt;pending → cloning → ready&lt;/code&gt;。失敗時は&lt;code&gt;failed&lt;/code&gt;へ移行し、同じ登録行から再試行します。&lt;/p&gt;
+                &lt;button type=&quot;button&quot; class=&quot;rsv-source-link&quot; data-nav=&quot;source&quot;&gt;&lt;i data-lucide=&quot;file-code-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;backend/app/repositories/service.py:42-88 を開く ${hotspot(3)}&lt;/button&gt;
+              &lt;/article&gt;
+              &lt;aside class=&quot;rsv-chatpane&quot;&gt;
+                &lt;div&gt;&lt;h2&gt;Ask Codex&lt;/h2&gt;&lt;p class=&quot;rsv-small rsv-muted&quot;&gt;このViewerと生成元Commitについて質問&lt;/p&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-message user&quot;&gt;Syncに失敗した場合、前回のCommitは残りますか？&lt;/div&gt;
+                &lt;div class=&quot;rsv-message&quot;&gt;はい。最後に成功したCommit SHAと同期日時は保持し、状態とエラーだけを更新します。&lt;/div&gt;
+                &lt;button type=&quot;button&quot; class=&quot;rsv-source-link&quot; data-nav=&quot;source&quot;&gt;&lt;i data-lucide=&quot;braces&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;根拠となるソースを表示&lt;/button&gt;
+                &lt;div class=&quot;rsv-chatinput&quot;&gt;&lt;textarea aria-label=&quot;Viewerについて質問&quot; placeholder=&quot;追加で質問する&quot;&gt;&lt;/textarea&gt;&lt;div class=&quot;rsv-actions&quot; style=&quot;margin-top:8px&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot;&gt;質問を送信&lt;/button&gt;${hotspot(2)}&lt;/div&gt;&lt;/div&gt;
+              &lt;/aside&gt;
+            &lt;/main&gt;`
+        },
+        source: {
+          route: &#x27;/viewers/01j-viewer/source&#x27;,
+          guide: &#x27;ソースコード表示での操作&#x27;,
+          notes: [
+            &#x27;Viewerや回答の根拠となったRepository相対パス、Commit SHA、行範囲を確認します。&#x27;,
+            &#x27;強調行が引用箇所です。行番号付きで、生成時点のCommitの内容を表示します。&#x27;,
+            &#x27;「Viewerへ戻る」またはGitHubの同じCommit・行範囲へのリンクで調査を続けます。&#x27;
+          ],
+          html: `
+            ${appbar(&#x27;repositories&#x27;)}
+            &lt;main class=&quot;rsv-main&quot;&gt;
+              &lt;div class=&quot;rsv-heading&quot;&gt;
+                &lt;div&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;Futaw/GHAgentDev · 2790172&lt;/div&gt;&lt;h1&gt;service.py&lt;/h1&gt;&lt;p class=&quot;rsv-muted&quot;&gt;backend/app/repositories/service.py · 42–88行&lt;/p&gt;&lt;/div&gt;
+                &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;viewer&quot;&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Viewerへ戻る&lt;/button&gt;${hotspot(3)}&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;&lt;i data-lucide=&quot;external-link&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;GitHubで開く&lt;/button&gt;&lt;/div&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;rsv-inline&quot; style=&quot;margin-bottom:12px&quot;&gt;&lt;span class=&quot;rsv-status&quot;&gt;生成時点のCommit&lt;/span&gt;${hotspot(1)}&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;強調部分がViewerの根拠です ${hotspot(2)}&lt;/span&gt;&lt;/div&gt;
+              &lt;pre class=&quot;rsv-code&quot; aria-label=&quot;Repository serviceのソースコード&quot;&gt;&lt;code&gt; 38  async def create_repository(self, github_url: str) -&gt; Repository:
+ 39      normalized = normalize_github_url(github_url)
+ 40      repository = Repository.create(normalized)
+ 41
+&lt;span class=&quot;hl&quot;&gt; 42      await self.store.add(repository)&lt;/span&gt;
+&lt;span class=&quot;hl&quot;&gt; 43      await self.store.commit()&lt;/span&gt;
+&lt;span class=&quot;hl&quot;&gt; 44      self.operations.start_clone(repository.id)&lt;/span&gt;
+ 45      return repository
+ 46
+ 47  async def sync_repository(self, repository_id: UUID) -&gt; Repository:
+ 48      repository = await self.store.get(repository_id)
+ 49      if repository.status in BUSY_STATUSES:
+ 50          raise RepositoryBusyError(repository_id)
+ 51
+&lt;span class=&quot;hl&quot;&gt; 52      operation = &quot;sync&quot; if self.workspace.is_valid(repository) else &quot;clone&quot;&lt;/span&gt;
+&lt;span class=&quot;hl&quot;&gt; 53      await self.store.mark_running(repository, operation)&lt;/span&gt;
+&lt;span class=&quot;hl&quot;&gt; 54      self.operations.start(repository.id, operation)&lt;/span&gt;
+ 55      return repository&lt;/code&gt;&lt;/pre&gt;
+            &lt;/main&gt;`
+        }
+      };
+
+      function render(name) {
+        const screen = screens[name] || screens.repositories;
+        stage.innerHTML = screen.html;
+        address.textContent = `localhost:5173${screen.route}`;
+        guideHeading.textContent = screen.guide;
+        guideList.innerHTML = screen.notes.map((note, index) =&gt; `
+          &lt;div class=&quot;rsv-guide-item&quot;&gt;&lt;span class=&quot;rsv-hotspot&quot; aria-hidden=&quot;true&quot;&gt;${index + 1}&lt;/span&gt;&lt;span&gt;${note}&lt;/span&gt;&lt;/div&gt;
+        `).join(&#x27;&#x27;);
+        root.querySelectorAll(&#x27;[data-screen]&#x27;).forEach((button) =&gt; {
+          button.setAttribute(&#x27;aria-pressed&#x27;, button.dataset.screen === name ? &#x27;true&#x27; : &#x27;false&#x27;);
+        });
+        if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      }
+
+      root.addEventListener(&#x27;click&#x27;, (event) =&gt; {
+        const target = event.target.closest(&#x27;[data-screen], [data-nav]&#x27;);
+        if (!target || !root.contains(target)) return;
+        render(target.dataset.screen || target.dataset.nav);
+      });
+
+      render(&#x27;repositories&#x27;);
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>
