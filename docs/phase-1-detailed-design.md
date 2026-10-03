@@ -2,7 +2,7 @@
 
 - 文書バージョン: v1.0
 - 更新日: 2026-09-30
-- ステータス: 設計レビュー待ち
+- ステータス: 実装済み（Pull Requestレビュー待ち）
 - 対象Phase: Phase 1「Repository管理」
 
 本文書は、[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)をPhase 1の実装へ落とし込む詳細設計書である。上位仕様と本文書が矛盾する場合は、Phase 1の範囲に限り本文書を優先する。
@@ -670,3 +670,15 @@ Repositoryの公開状態変更は本実装や自動テストから行わない�
 Phase 2は`status = ready`のRepositoryだけをViewer生成対象にする。Generation開始時に`latest_commit_sha`を確定し、Workspaceの現在値だけに依存しない設計を追加する。
 
 Phase 2でViewerを古いCommitへ固定した後もソースを参照できるよう、必要なCommitをGit refで保持する方式はPhase 2詳細設計で決定する。Phase 1ではfull cloneとし、自動`git gc`は実行しない。
+
+## 17. 実装確認結果（2026-10-01）
+
+- Backend: Ruff check / format check 成功、Pytest 28件成功
+- Frontend: Vitest 6件成功、ESLint成功、TypeScript + Vite production build成功
+- 実ブラウザ: 一覧empty state、登録必須エラー、登録後Dashboard遷移、Private Repositoryの失敗表示、Desktop/Mobileレイアウトを確認。console error / warningなし
+- Alembic: PostgreSQL dialectによる`upgrade head --sql`生成成功
+- Git結合テスト: ローカルbare Repositoryのfull clone、追加Commitのfetch/reset成功
+- API結合テスト: 登録`202`、重複`409`、不正URL`422`、存在しないID`404`、非同期Clone失敗の保存を確認
+- GitHub手動検証: ambient credential、global/system Git config、対話入力を無効化した`git ls-remote`は、`Futaw/GHAgentDev`に対して認証要求を出さず失敗した。Private Repositoryを開発者PCの認証で取得しないことを確認した
+
+開発環境にはPostgreSQL実行ファイルがないため、実DatabaseへのMigration適用は未実施である。Migration SQLとRepository CRUDは、それぞれPostgreSQL dialectのoffline生成とSQLite結合テストで検証した。

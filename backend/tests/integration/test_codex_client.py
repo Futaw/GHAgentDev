@@ -11,6 +11,7 @@ FAKE_SERVER = Path(__file__).parents[1] / "fixtures" / "fake_app_server.py"
 
 def make_settings() -> Settings:
     return Settings(
+        database_url="sqlite+aiosqlite:///:memory:",
         codex_executable=str(FAKE_SERVER),
         test_chat_workspace=Path.cwd(),
         codex_request_timeout_seconds=2,
