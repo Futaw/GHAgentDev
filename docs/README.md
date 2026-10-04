@@ -139,6 +139,7 @@ Viewer
 - [フロントエンド用語解説集](./frontend-glossary.md)
 - [バックエンド仕様](./backend-spec.md)
 - [バックエンド用語解説集](./backend-glossary.md)
+- [SQLAlchemy利用ガイド](./sqlalchemy-reference.md)
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
 - [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
