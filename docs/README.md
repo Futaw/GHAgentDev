@@ -142,6 +142,7 @@ Viewer
 - [バックエンド用語解説集](./backend-glossary.md)
 - [SQLAlchemy利用ガイド](./sqlalchemy-reference.md)
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
+- [Phase 0・1 手動テストガイド](./phase-0-1-manual-test-guide.md)
 - [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
 Phaseごとの実装開始前に詳細設計書を追加し、スコープ、状態、API、データ、処理、画面、テスト、完了条件を確定する。

@@ -51,8 +51,10 @@ alembic upgrade head
 
 ```bash
 source .venv/bin/activate
-uvicorn backend.app.main:app --reload --workers 1
+uvicorn backend.app.main:app --workers 1
 ```
+
+`WORKSPACE_ROOT`がRepository内の`.data/workspaces`である場合、`--reload`は付けないでください。CloneしたファイルをUvicornがソースコードの変更として検知し、実行中のCloneを中断するためです。
 
 ```bash
 npm --prefix frontend run dev
@@ -78,3 +80,4 @@ BackendテストはSQLiteとローカルbare Git Repositoryをtest seamとして
 - [バックエンド仕様](./docs/backend-spec.md)
 - [フロントエンド仕様](./docs/frontend-spec.md)
 - [Phase 1 詳細設計書](./docs/phase-1-detailed-design.md)
+- [Phase 0・1 手動テストガイド](./docs/phase-0-1-manual-test-guide.md)
