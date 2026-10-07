@@ -13,6 +13,7 @@ GitHub RepositoryのソースコードをCodex App Serverで調査し、読み�
 - Public GitHub Repository URLの登録、正規化、重複防止
 - 管理Workspaceへの非同期Cloneと状態表示
 - Repository一覧、Dashboard、最新コードの取得
+- Repositoryの登録解除とローカル管理Workspaceの安全な削除
 - Default Branch、Commit SHA、最終同期日時のPostgreSQL保存
 - 容量・ファイル数・timeout制限とRepository単位の排他制御
 

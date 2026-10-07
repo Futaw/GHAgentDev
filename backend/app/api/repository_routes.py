@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Request, Response, status
 
@@ -56,3 +56,11 @@ async def sync_repository(
     response.headers["Location"] = f"/api/repositories/{repository.id}"
     response.headers["Retry-After"] = "2"
     return RepositoryResponse.from_model(repository)
+
+
+@router.delete("/{repository_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_repository(request: Request, repository_id: UUID) -> Response:
+    trace_id = request.headers.get("X-Trace-ID", str(uuid4()))
+    request.state.trace_id = trace_id
+    await _service(request).delete(repository_id, trace_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

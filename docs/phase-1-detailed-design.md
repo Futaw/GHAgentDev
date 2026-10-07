@@ -2,7 +2,7 @@
 
 - 文書バージョン: v1.1
 - 更新日: 2026-10-08
-- ステータス: Phase 1本体は実装済み（Repository削除機能は設計済み・未実装）
+- ステータス: Phase 1実装済み
 - 対象Phase: Phase 1「Repository管理」
 
 本文書は、[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)をPhase 1の実装へ落とし込む詳細設計書である。上位仕様と本文書が矛盾する場合は、Phase 1の範囲に限り本文書を優先する。
@@ -769,13 +769,12 @@ Phase 2でViewerを古いCommitへ固定した後もソースを参照できる�
 
 Phase 2でViewer等の子テーブルを追加するときはRepository外部キーを`ON DELETE RESTRICT`とし、関連データが残るRepository削除を`REPOSITORY_IN_USE`で拒否する。子データを連鎖削除する仕様は設けない。
 
-## 17. 実装確認結果（2026-10-01）
+## 17. 実装確認結果（2026-10-08更新）
 
-この節の確認結果は登録・Clone・一覧・詳細・Syncを対象とする。2026-10-08に追加したRepository削除機能は未実装であり、以下の結果には含まれない。
-
-- Backend: Ruff check / format check 成功、Pytest 28件成功
-- Frontend: Vitest 6件成功、ESLint成功、TypeScript + Vite production build成功
-- 実ブラウザ: 一覧empty state、登録必須エラー、登録後Dashboard遷移、Private Repositoryの失敗表示、Desktop/Mobileレイアウトを確認。console error / warningなし
+- Backend: Ruff check / format check 成功、Pytest 32件成功
+- Frontend: Vitest 9件成功、ESLint成功、TypeScript + Vite production build成功
+- Repository削除API: 成功、処理中・関連データありの拒否、symlink拒否、Workspace削除失敗時のDB行保持、DB削除失敗後の再試行、削除後の同一URL再登録を確認
+- 実ブラウザ: 一覧empty state、登録必須エラー、登録後Dashboard遷移、Private Repositoryの失敗表示、削除確認ダイアログ、キャンセルの初期focus、Desktop/Mobileレイアウトを確認。console error / warningなし
 - Alembic: PostgreSQL dialectによる`upgrade head --sql`生成成功
 - Git結合テスト: ローカルbare Repositoryのfull clone、追加Commitのfetch/reset成功
 - API結合テスト: 登録`202`、重複`409`、不正URL`422`、存在しないID`404`、非同期Clone失敗の保存を確認

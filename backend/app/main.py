@@ -20,6 +20,8 @@ from backend.app.repositories import (
     DatabaseUnavailableError,
     RepositoryAlreadyRegisteredError,
     RepositoryBusyError,
+    RepositoryDeleteError,
+    RepositoryInUseError,
     RepositoryNotFoundError,
     RepositoryOperationRunner,
     RepositoryService,
@@ -113,6 +115,18 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
     async def repository_busy_handler(request: Request, exc: RepositoryBusyError) -> JSONResponse:
         return _problem(request, 409, "Repository busy", str(exc), "REPOSITORY_BUSY", True)
 
+    @app.exception_handler(RepositoryInUseError)
+    async def repository_in_use_handler(
+        request: Request, exc: RepositoryInUseError
+    ) -> JSONResponse:
+        return _problem(request, 409, "Repository in use", str(exc), "REPOSITORY_IN_USE", False)
+
+    @app.exception_handler(RepositoryDeleteError)
+    async def repository_delete_handler(
+        request: Request, exc: RepositoryDeleteError
+    ) -> JSONResponse:
+        return _problem(request, 500, "Repository deletion failed", str(exc), "DELETE_FAILED", True)
+
     @app.exception_handler(DatabaseUnavailableError)
     @app.exception_handler(SQLAlchemyError)
     async def database_unavailable_handler(request: Request, _exc: Exception) -> JSONResponse:
@@ -175,7 +189,11 @@ def _problem(
     retryable: bool,
     extra: dict[str, object] | None = None,
 ) -> JSONResponse:
-    trace_id = request.headers.get("X-Trace-ID", str(uuid4()))
+    trace_id = getattr(
+        request.state,
+        "trace_id",
+        request.headers.get("X-Trace-ID", str(uuid4())),
+    )
     return JSONResponse(
         status_code=status_code,
         media_type="application/problem+json",

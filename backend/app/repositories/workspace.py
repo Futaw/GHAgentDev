@@ -51,6 +51,15 @@ class WorkspaceResolver:
                 raise UnsafeWorkspaceError("Invalid managed repository path")
             shutil.rmtree(path)
 
+    def delete_repository(self, workspace_key: str) -> None:
+        path = self.repository_path(workspace_key)
+        if not path.exists() and not path.is_symlink():
+            return
+        if path.is_symlink() or not path.is_dir():
+            raise UnsafeWorkspaceError("Invalid managed repository deletion target")
+        self._assert_child(path, self.repositories_root)
+        shutil.rmtree(path)
+
     def _assert_direct_child_or_root(self, path: Path) -> None:
         resolved = path.resolve()
         if resolved != self.root and self.root not in resolved.parents:

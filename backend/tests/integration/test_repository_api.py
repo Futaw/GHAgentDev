@@ -94,3 +94,14 @@ async def test_repository_api_contract_and_async_failure(tmp_path: Path) -> None
             invalid_id = await client.get("/api/repositories/not-a-uuid")
             assert invalid_id.status_code == 422
             assert invalid_id.json()["code"] == "VALIDATION_ERROR"
+
+            deleted = await client.delete(f"/api/repositories/{repository_id}")
+            assert deleted.status_code == 204
+            deleted_detail = await client.get(f"/api/repositories/{repository_id}")
+            assert deleted_detail.status_code == 404
+
+            recreated = await client.post(
+                "/api/repositories",
+                json={"github_url": "https://github.com/Futaw/GHAgentDev"},
+            )
+            assert recreated.status_code == 202

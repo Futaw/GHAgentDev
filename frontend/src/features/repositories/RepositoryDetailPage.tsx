@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../lib/api'
-import { getRepository, syncRepository } from './repositoryApi'
+import { deleteRepository, getRepository, syncRepository } from './repositoryApi'
+import { RepositoryDeleteDialog } from './RepositoryDeleteDialog'
 import { RepositoryStatusBadge } from './RepositoryStatusBadge'
 import { isRepositoryProcessing } from './repositoryTypes'
 
@@ -11,6 +13,8 @@ const displayDate = (value: string | null) => value
 
 export function RepositoryDetailPage() {
   const { repositoryId = '' } = useParams()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const repository = useQuery({
     queryKey: ['repositories', repositoryId],
@@ -28,6 +32,14 @@ export function RepositoryDetailPage() {
       if (error instanceof ApiError && error.problem.code === 'REPOSITORY_BUSY') void repository.refetch()
     },
   })
+  const remove = useMutation({
+    mutationFn: () => deleteRepository(repositoryId),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['repositories', repositoryId] })
+      void queryClient.invalidateQueries({ queryKey: ['repositories'] })
+      navigate('/repositories')
+    },
+  })
 
   if (repository.isPending) return <main className="page-shell"><div className="panel muted">Repositoryを読み込んでいます…</div></main>
   if (repository.isError) {
@@ -36,6 +48,12 @@ export function RepositoryDetailPage() {
   }
   const item = repository.data
   const processing = isRepositoryProcessing(item)
+  const deleteDisabled = processing || item.viewer_count > 0
+  const deleteDisabledReason = processing
+    ? 'Cloneまたは同期の完了後に削除できます。'
+    : item.viewer_count > 0
+      ? '関連するViewerを先に削除してください。'
+      : null
 
   return (
     <main className="page-shell">
@@ -47,6 +65,26 @@ export function RepositoryDetailPage() {
       </section>
       {sync.isError && !(sync.error instanceof ApiError && sync.error.problem.code === 'REPOSITORY_BUSY') && <div className="error-card" role="alert"><p>同期を開始できませんでした。もう一度お試しください。</p></div>}
       <section className="detail-grid"><div className="panel"><h2>Repository情報</h2><dl className="detail-list"><div><dt>Default Branch</dt><dd>{item.default_branch ?? '確認中'}</dd></div><div><dt>Commit SHA</dt><dd className="mono break-all">{item.latest_commit_sha ?? '確認中'}</dd></div><div><dt>最終同期日時</dt><dd>{displayDate(item.last_synced_at)}</dd></div><div><dt>登録日時</dt><dd>{displayDate(item.created_at)}</dd></div></dl></div><div className="panel"><div className="panel-heading"><h2>Viewers</h2><button className="secondary" disabled title="Phase 2で利用可能">Viewerを作成</button></div><div className="viewer-placeholder"><p>Viewerはまだありません</p><small>Phase 2で仕様書の生成機能が利用可能になります。</small></div></div></section>
+      <section className="danger-zone">
+        <div><h2>Repositoryを削除</h2><p>RepoSpec Viewerの登録情報とローカルWorkspaceを削除します。GitHub上のRepositoryは変更しません。</p>{deleteDisabledReason && <small>{deleteDisabledReason}</small>}</div>
+        <button className="danger-outline" disabled={deleteDisabled} onClick={() => {
+          remove.reset()
+          setDeleteOpen(true)
+        }}>Repositoryを削除</button>
+      </section>
+      <RepositoryDeleteDialog
+        fullName={item.full_name}
+        isOpen={deleteOpen}
+        isPending={remove.isPending}
+        error={remove.error}
+        onCancel={() => {
+          if (!remove.isPending) {
+            remove.reset()
+            setDeleteOpen(false)
+          }
+        }}
+        onConfirm={() => remove.mutate()}
+      />
     </main>
   )
 }
