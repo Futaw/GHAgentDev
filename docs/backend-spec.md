@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.2
-- 更新日: 2026-09-30
+- 文書バージョン: v0.3
+- 更新日: 2026-10-08
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -17,7 +17,7 @@
 - ChatGPT/Codex認証状態の取得とログインフロー
 - Codex Thread、Turn、Item、通知、エラーの管理
 - Codexイベントからアプリ内イベントへの変換
-- Public GitHub Repositoryの登録・Clone・Sync
+- Public GitHub Repositoryの登録・Clone・Sync・登録解除
 - Repository Workspaceの安全な管理
 - Viewer Generation Jobの実行とストリーミング
 - 構造化文書の検証、HTMLレンダリング、サニタイズ
@@ -201,9 +201,12 @@ GET  /api/repositories
 POST /api/repositories
 GET  /api/repositories/{repository_id}
 POST /api/repositories/{repository_id}/sync
+DELETE /api/repositories/{repository_id}
 ```
 
 Phase 1はRepository詳細のREST pollingでClone/Sync状態を取得する。`sync/events`は詳細な進捗表示が必要になった時点で追加する候補とし、Phase 1では実装しない。厳密な契約は[Phase 1 詳細設計書](./phase-1-detailed-design.md)を参照する。
+
+削除APIはアプリの登録情報と管理Workspaceだけを削除し、GitHub上のRepositoryには変更を加えない。Clone/Sync中は削除を拒否する。管理Workspaceを削除してからDB行を削除し、途中で失敗した場合はDB行を残して再試行できるようにする。
 
 ### 6.2 URL validation
 
@@ -221,6 +224,7 @@ Phase 1はRepository詳細のREST pollingでClone/Sync状態を取得する。`s
 - 子ディレクトリ名はRepository IDからサーバーが決定する
 - GitHub URL、owner/repository名、ユーザー入力をファイルシステムパスに連結しない
 - 同一RepositoryのClone、Sync、Generation間で適切な排他ロックを取る
+- Repository削除はClone、Sync、Generationと同じ排他対象にする
 - 解析中にCommitが変わらないよう、Generation開始時にCommit SHAを確定する
 - submoduleとGit LFSは初期スコープ外
 - Repository内のGit hookは実行しない
@@ -489,6 +493,8 @@ REST errorはRFC 9457 Problem Details相当の形に統一する。
 - `REPOSITORY_BUSY`
 - `CLONE_FAILED`
 - `SYNC_FAILED`
+- `DELETE_FAILED`
+- `REPOSITORY_IN_USE`
 - `GENERATION_FAILED`
 - `DOCUMENT_SCHEMA_INVALID`
 - `HTML_RENDER_FAILED`
@@ -513,7 +519,9 @@ REST errorはRFC 9457 Problem Details相当の形に統一する。
 - path traversalとsymlink escapeを拒否
 - Clone先はサーバー管理ルート下のみ
 - 任意のshell実行を許可しない
-- Repository削除を追加する場合はDBとWorkspaceの削除を別々に監査可能にする
+- Repository削除は管理Workspaceだけを対象とし、GitHub上のRepositoryを削除しない
+- WorkspaceとDB行の削除結果を同じtrace IDで別々に記録する
+- Workspace pathが管理ルート直下のUUIDディレクトリであることを削除直前に再検証する
 
 ### HTML
 
@@ -579,6 +587,7 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 - Codex eventからdomain eventへの変換
 - GitHub URL正規化
 - Workspace pathとsymlink検証
+- Repository Workspace削除対象の検証
 - ViewerDocument validation
 - HTML allowlistとXSS payloadの無害化
 - Job状態遷移
@@ -589,6 +598,7 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 - login success/failure/cancel notification
 - SSEの順序、切断、再接続
 - ローカルのテスト用Git Repositoryを用いたClone/Sync service
+- Repository削除成功、処理中拒否、Workspace削除失敗時のDB行保持
 - PostgreSQLを用いたJob/Viewer/Conversationの永続化
 
 ### Contract
