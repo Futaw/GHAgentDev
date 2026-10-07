@@ -14,3 +14,6 @@ export const createRepository = (githubUrl: string) =>
 
 export const syncRepository = (repositoryId: string) =>
   api<Repository>(`/api/repositories/${encodeURIComponent(repositoryId)}/sync`, { method: 'POST' })
+
+export const deleteRepository = (repositoryId: string) =>
+  api<void>(`/api/repositories/${encodeURIComponent(repositoryId)}`, { method: 'DELETE' })

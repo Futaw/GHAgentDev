@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -12,7 +13,7 @@ from backend.app.repositories.git import GitClient, GitOperationError
 from backend.app.repositories.models import RepositoryModel, RepositoryStatus
 from backend.app.repositories.store import DuplicateRepositoryError, RepositoryStore
 from backend.app.repositories.url import GitHubRepositoryUrl, normalize_github_url
-from backend.app.repositories.workspace import WorkspaceResolver
+from backend.app.repositories.workspace import UnsafeWorkspaceError, WorkspaceResolver
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +23,14 @@ class RepositoryNotFoundError(RuntimeError):
 
 
 class RepositoryBusyError(RuntimeError):
+    pass
+
+
+class RepositoryInUseError(RuntimeError):
+    pass
+
+
+class RepositoryDeleteError(RuntimeError):
     pass
 
 
@@ -45,11 +54,29 @@ class RepositoryOperationRunner:
         if self._stopping:
             raise RuntimeError("Repository operations are stopping")
         current = self._tasks.get(repository_id)
-        if current and not current.done():
+        lock = self._locks.setdefault(repository_id, asyncio.Lock())
+        if lock.locked() or (current and not current.done()):
             raise RepositoryBusyError("Repositoryの処理はすでに実行中です。")
         task = asyncio.create_task(self._run(repository_id, operation))
         self._tasks[repository_id] = task
         task.add_done_callback(lambda completed: self._task_done(repository_id, completed))
+
+    @asynccontextmanager
+    async def exclusive(self, repository_id: UUID) -> AsyncIterator[None]:
+        if self._stopping:
+            raise RepositoryBusyError("Repositoryの処理を開始できません。")
+        current = self._tasks.get(repository_id)
+        lock = self._locks.setdefault(repository_id, asyncio.Lock())
+        if lock.locked() or (current and not current.done()):
+            raise RepositoryBusyError("Repositoryの処理はすでに実行中です。")
+        await lock.acquire()
+        try:
+            current = self._tasks.get(repository_id)
+            if current and not current.done():
+                raise RepositoryBusyError("Repositoryの処理はすでに実行中です。")
+            yield
+        finally:
+            lock.release()
 
     async def _run(self, repository_id: UUID, operation: Callable[[], Awaitable[None]]) -> None:
         lock = self._locks.setdefault(repository_id, asyncio.Lock())
@@ -178,6 +205,75 @@ class RepositoryService:
             return await self.store.recover_interrupted()
         except SQLAlchemyError as exc:
             raise DatabaseUnavailableError from exc
+
+    async def delete(self, repository_id: UUID, trace_id: str) -> None:
+        model = await self.get(repository_id)
+        self._ensure_deletable(model)
+        async with self.runner.exclusive(repository_id):
+            model = await self.get(repository_id)
+            self._ensure_deletable(model)
+            try:
+                if await self.store.has_related_data(repository_id):
+                    raise RepositoryInUseError("関連するViewerなどを先に削除してください。")
+            except SQLAlchemyError as exc:
+                raise DatabaseUnavailableError from exc
+
+            self._log_delete("repository.workspace_delete_started", repository_id, trace_id)
+            try:
+                await asyncio.to_thread(
+                    self.workspace.delete_repository,
+                    model.workspace_key,
+                )
+            except (OSError, UnsafeWorkspaceError) as exc:
+                self._log_delete(
+                    "repository.workspace_delete_failed",
+                    repository_id,
+                    trace_id,
+                    logging.ERROR,
+                )
+                raise RepositoryDeleteError(
+                    "管理Workspaceを削除できませんでした。再試行してください。"
+                ) from exc
+            self._log_delete("repository.workspace_delete_completed", repository_id, trace_id)
+
+            self._log_delete("repository.record_delete_started", repository_id, trace_id)
+            try:
+                deleted = await self.store.delete(repository_id)
+            except SQLAlchemyError as exc:
+                self._log_delete(
+                    "repository.record_delete_failed",
+                    repository_id,
+                    trace_id,
+                    logging.ERROR,
+                )
+                raise DatabaseUnavailableError from exc
+            if not deleted:
+                self._log_delete(
+                    "repository.record_delete_failed",
+                    repository_id,
+                    trace_id,
+                    logging.ERROR,
+                )
+                raise RepositoryNotFoundError("Repositoryが見つかりません。")
+            self._log_delete("repository.record_delete_completed", repository_id, trace_id)
+
+    @staticmethod
+    def _ensure_deletable(model: RepositoryModel) -> None:
+        if model.status not in {RepositoryStatus.READY.value, RepositoryStatus.FAILED.value}:
+            raise RepositoryBusyError("Repositoryの処理中は削除できません。")
+
+    @staticmethod
+    def _log_delete(
+        event: str,
+        repository_id: UUID,
+        trace_id: str,
+        level: int = logging.INFO,
+    ) -> None:
+        LOGGER.log(
+            level,
+            event,
+            extra={"repository_id": str(repository_id), "trace_id": trace_id},
+        )
 
     async def _clone(
         self,

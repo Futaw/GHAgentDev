@@ -58,6 +58,9 @@ h1 { margin: 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 
 .primary:disabled { cursor: not-allowed; opacity: .45; }
 .secondary, .error-card button { color: #263426; background: #e9ece5; }
 .stop { color: #8a3c33; background: #f5e5e1; }
+.danger { color: #fff; background: #9c3f34; border: 0; border-radius: 10px; padding: 11px 18px; font-weight: 700; }
+.danger:hover { background: #84342c; }
+.danger:disabled, .danger-outline:disabled { cursor: not-allowed; opacity: .45; }
 
 .app-shell { min-height: 100vh; }
 .chat-shell { min-height: calc(100vh - 70px); display: flex; flex-direction: column; }
@@ -144,6 +147,17 @@ dd { margin: 0; line-height: 1.5; }
 .viewer-placeholder { display: grid; place-items: center; min-height: 190px; border: 1px dashed #ccccc3; border-radius: 12px; color: #73766f; text-align: center; }
 .viewer-placeholder p { margin: 0 0 6px; font-weight: 800; }
 .viewer-placeholder small { display: block; }
+.danger-zone { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-top: 20px; padding: 24px 28px; border: 1px solid #e3bcb5; border-radius: 18px; background: #fff8f6; }
+.danger-zone h2 { margin: 0 0 6px; font-family: Georgia, serif; font-weight: 400; color: #783a33; }
+.danger-zone p { margin: 0; color: #6f5a56; line-height: 1.6; }
+.danger-zone small { display: block; margin-top: 8px; color: #8a3c33; }
+.danger-outline { flex: 0 0 auto; padding: 10px 16px; border: 1px solid #a34c42; border-radius: 10px; color: #8a3c33; background: transparent; font-weight: 800; }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(25, 27, 24, .48); }
+.delete-dialog { width: min(100%, 520px); padding: 30px; border-radius: 18px; background: #fffdfa; box-shadow: 0 24px 80px rgba(20, 20, 18, .25); }
+.delete-dialog h2 { margin: 8px 0 12px; font-family: Georgia, serif; font-size: 30px; font-weight: 400; }
+.danger-text { color: #91453c; }
+.delete-target { padding: 10px 12px; border-radius: 8px; background: #f2eee9; overflow-wrap: anywhere; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 26px; }
 
 @media (max-width: 680px) {
   .app-header { position: static; height: auto; min-height: 70px; padding: 14px 18px; grid-template-columns: 1fr auto; gap: 12px; }
@@ -158,5 +172,7 @@ dd { margin: 0; line-height: 1.5; }
   .page-heading, .status-panel { align-items: stretch; flex-direction: column; }
   .repository-grid, .detail-grid { grid-template-columns: 1fr; }
   .repository-card-heading { flex-direction: column; }
+  .danger-zone { align-items: stretch; flex-direction: column; }
   .form-actions { flex-direction: column-reverse; }
+  .dialog-actions { flex-direction: column-reverse; }
 }

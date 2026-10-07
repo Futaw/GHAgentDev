@@ -61,4 +61,7 @@ async def test_store_crud_duplicate_and_interrupted_recovery(tmp_path: Path) -> 
     assert after_failure.default_branch == before_failure.default_branch == "main"
     assert after_failure.latest_commit_sha == before_failure.latest_commit_sha == "a" * 40
     assert after_failure.last_synced_at == before_failure.last_synced_at
+    assert await store.has_related_data(successful.id) is False
+    assert await store.delete(successful.id) is True
+    assert await store.delete(successful.id) is False
     await engine.dispose()

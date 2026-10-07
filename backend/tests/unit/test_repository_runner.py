@@ -23,3 +23,20 @@ async def test_runner_rejects_two_operations_for_same_repository() -> None:
         runner.schedule(repository_id, operation)
     release.set()
     await runner.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_runner_exclusive_lock_rejects_background_and_second_delete() -> None:
+    runner = RepositoryOperationRunner()
+    repository_id = uuid4()
+
+    async def operation() -> None:
+        await asyncio.sleep(0)
+
+    async with runner.exclusive(repository_id):
+        with pytest.raises(RepositoryBusyError):
+            runner.schedule(repository_id, operation)
+        with pytest.raises(RepositoryBusyError):
+            async with runner.exclusive(repository_id):
+                pass
+    await runner.shutdown()

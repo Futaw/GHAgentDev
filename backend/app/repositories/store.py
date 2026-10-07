@@ -4,7 +4,7 @@ from collections.abc import Collection
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -52,6 +52,18 @@ class RepositoryStore:
             return await session.scalar(
                 select(RepositoryModel).where(RepositoryModel.canonical_github_url == canonical_url)
             )
+
+    async def has_related_data(self, repository_id: UUID) -> bool:
+        # Phase 1 has no related tables. Phase 2 will replace this with an EXISTS query.
+        return False
+
+    async def delete(self, repository_id: UUID) -> bool:
+        async with self.sessions() as session:
+            result = await session.execute(
+                delete(RepositoryModel).where(RepositoryModel.id == repository_id)
+            )
+            await session.commit()
+            return result.rowcount == 1
 
     async def begin_operation(
         self,
