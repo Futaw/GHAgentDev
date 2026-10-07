@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.2
-- 更新日: 2026-09-30
+- 文書バージョン: v0.3
+- 更新日: 2026-10-08
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -66,6 +66,7 @@ flowchart LR
 - 入力URLの厳密な検証
 - 管理対象ディレクトリへのClone
 - Repository一覧・詳細・同期
+- Repositoryの登録解除と管理Workspaceの削除
 - Branch、Commit SHA、最終同期日時の保存
 - Repository単位の排他制御
 
@@ -116,7 +117,7 @@ Viewer
 |---|---|
 | Auth | Codex認証状態、ログイン開始、キャンセル、ログアウト |
 | Chat | Phase 0用の最小Conversation、Turn実行、ストリーミング |
-| Repository | GitHub URL、Clone、Sync、Workspace、Commit SHA |
+| Repository | GitHub URL、Clone、Sync、登録解除、Workspace、Commit SHA |
 | Viewer | 生成条件、構造化本文、HTML、テーマ、生成元Commit |
 | Generation | Job状態、Codex Thread/Turn、進捗、失敗理由 |
 | Conversation | Viewer単位の質問履歴、Codex Threadへの対応 |

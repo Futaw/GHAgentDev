@@ -1365,14 +1365,15 @@ html&gt;body{padding:0}&lt;/style&gt;
           notes: [
             &#x27;「最新コードを取得」でoriginのDefault Branchへ同期します。処理中は二重操作できません。&#x27;,
             &#x27;「Viewerを作成」から、説明してほしい機能や読者などの生成条件を指定します。&#x27;,
-            &#x27;過去に生成したViewerを一覧から開きます。各Viewerは生成時点のCommit SHAを保持します。&#x27;
+            &#x27;過去に生成したViewerを一覧から開きます。各Viewerは生成時点のCommit SHAを保持します。&#x27;,
+            &#x27;「Repositoryを削除」はViewerがない場合に確認ダイアログを開き、アプリの登録情報と管理Workspaceだけを削除します。GitHub上のRepositoryは削除しません。この例ではViewerがあるため、ボタンを無効にしています。&#x27;
           ],
           html: `
             ${appbar(&#x27;repositories&#x27;)}
             &lt;main class=&quot;rsv-main&quot;&gt;
               &lt;div class=&quot;rsv-heading&quot;&gt;
                 &lt;div&gt;&lt;div class=&quot;rsv-small rsv-muted&quot;&gt;Futaw /&lt;/div&gt;&lt;h1&gt;GHAgentDev&lt;/h1&gt;&lt;div class=&quot;rsv-inline&quot;&gt;&lt;span class=&quot;rsv-status&quot;&gt;Ready&lt;/span&gt;&lt;span class=&quot;rsv-muted rsv-small&quot;&gt;最終同期 2026/10/01 09:42&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
-                &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;最新コードを取得&lt;/button&gt;${hotspot(1)}&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;viewer-new&quot;&gt;&lt;i data-lucide=&quot;file-plus-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Viewerを作成&lt;/button&gt;${hotspot(2)}&lt;/div&gt;
+                &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot;&gt;&lt;i data-lucide=&quot;refresh-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;最新コードを取得&lt;/button&gt;${hotspot(1)}&lt;button type=&quot;button&quot; class=&quot;rsv-danger&quot; disabled title=&quot;Viewerを先に削除してください&quot;&gt;&lt;i data-lucide=&quot;trash-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Repositoryを削除&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;viewer-new&quot;&gt;&lt;i data-lucide=&quot;file-plus-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Viewerを作成&lt;/button&gt;${hotspot(2)}&lt;/div&gt;
               &lt;/div&gt;
               &lt;div class=&quot;rsv-split&quot;&gt;
                 &lt;section&gt;

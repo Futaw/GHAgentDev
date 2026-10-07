@@ -1,6 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.1
+- 文書バージョン: v0.2
+- 更新日: 2026-10-08
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -10,7 +11,7 @@
 
 ## 1. 責務
 
-フロントエンドは、Repositoryの登録、Viewerの生成条件入力、生成進捗の可視化、HTML仕様書の閲覧、Viewerに対する追加質問を担当する。
+フロントエンドは、Repositoryの登録・同期・削除、Viewerの生成条件入力、生成進捗の可視化、HTML仕様書の閲覧、Viewerに対する追加質問を担当する。
 
 ブラウザはCodex App ServerやGitを直接操作しない。フロントエンドの外部通信先はFastAPIに限定する。
 
@@ -131,9 +132,20 @@ SSEイベントはバックエンドの内部JSON-RPCをそのまま表示せず
 
 - Repositoryの基本情報
 - `最新コードを取得`ボタン
+- `Repositoryを削除`ボタン
 - `Viewerを作成`ボタン
 - Viewer一覧
 - Clone/Sync失敗時の詳細と再試行
+
+### 5.4 Repository削除
+
+- 削除操作はRepository Dashboardの危険操作領域にだけ表示し、一覧画面には置かない。
+- `Repositoryを削除`を押すと確認ダイアログを開く。
+- ダイアログには、アプリの登録情報とローカルの管理Workspaceが削除され、GitHub上のRepositoryは削除されないことを明記する。
+- CloneまたはSync中、およびViewerなどの関連データが存在する場合は削除ボタンを無効化する。
+- 削除できない理由と、関連データを先に削除する必要があることをボタン付近に表示する。
+- 削除成功後はRepository一覧へ遷移し、完了メッセージを表示する。
+- 削除失敗時はDashboardと確認ダイアログを維持し、再試行できるエラーを表示する。
 
 ## 6. Phase 2: Viewer作成と閲覧
 
@@ -258,6 +270,7 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 | SSE切断 | 自動再接続中と表示し、失敗時はJob/Turn状態をRESTで再取得 |
 | Generation失敗 | 保存済み条件での再試行を提供 |
 | 削除失敗 | Viewerを一覧から消さずエラーを表示 |
+| Repository削除失敗 | Dashboardを維持し、GitHub上のRepositoryは変更されていないことを伝えて再試行を案内 |
 
 ## 11. アクセシビリティとレスポンシブ
 
@@ -276,6 +289,7 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 - SSE event reducerの順序性と重複排除
 - ソース参照のパス検証
 - Theme切り替え
+- Repository削除の確認、キャンセル、成功、失敗
 
 ### E2E
 
@@ -283,6 +297,7 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 2. Repositoryを登録し、Clone完了後にDashboardを表示できる。
 3. Viewerを生成し、進捗画面から生成済みViewerへ遷移できる。
 4. Viewerへ質問し、参照をクリックしてSource Code Viewerを開ける。
+5. Repository削除を確認すると一覧へ戻り、キャンセルするとDashboardに留まる。
 
 ## 13. 想定ディレクトリ
 

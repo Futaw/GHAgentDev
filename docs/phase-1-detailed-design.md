@@ -1,8 +1,8 @@
 # RepoSpec Viewer Phase 1 詳細設計書
 
-- 文書バージョン: v1.0
-- 更新日: 2026-09-30
-- ステータス: 実装済み（Pull Requestレビュー待ち）
+- 文書バージョン: v1.1
+- 更新日: 2026-10-08
+- ステータス: Phase 1本体は実装済み（Repository削除機能は設計済み・未実装）
 - 対象Phase: Phase 1「Repository管理」
 
 本文書は、[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)をPhase 1の実装へ落とし込む詳細設計書である。上位仕様と本文書が矛盾する場合は、Phase 1の範囲に限り本文書を優先する。
@@ -13,7 +13,7 @@
 
 ### 1.1 目的
 
-Public GitHub RepositoryのURLを登録し、バックエンド管理下のWorkspaceへCloneして、一覧・詳細・最新コード取得をWeb画面から操作できる状態にする。
+Public GitHub RepositoryのURLを登録し、バックエンド管理下のWorkspaceへCloneして、一覧・詳細・最新コード取得・登録解除をWeb画面から操作できる状態にする。
 
 Phase 1完了時には、後続Phaseが次の情報を安全に利用できることを目標とする。
 
@@ -23,13 +23,14 @@ Phase 1完了時には、後続Phaseが次の情報を安全に利用できる�
 - 最新Commit SHA
 - 最終同期日時
 - CloneまたはSyncの現在状態と、失敗時の安全なエラー情報
+- 不要になったRepositoryの登録情報と管理Workspaceを安全に削除する操作
 
 ### 1.2 対象
 
 - GitHub URLの入力、正規化、検証、重複防止
 - Public Repositoryの非同期Clone
-- Repository一覧、登録、詳細、Sync API
-- Repository一覧、登録、Dashboard画面
+- Repository一覧、登録、詳細、Sync、削除API
+- Repository一覧、登録、Dashboard、削除確認ダイアログ
 - PostgreSQLへのRepository情報の保存
 - Repository単位の多重実行防止
 - タイムアウト、容量、ファイル数、プロセス異常終了の扱い
@@ -40,7 +41,7 @@ Phase 1完了時には、後続Phaseが次の情報を安全に利用できる�
 
 - Private Repositoryの認証、GitHub OAuth、Personal Access Token
 - GitHub APIによるRepository情報取得
-- Repositoryの削除、Branch選択、Commit選択
+- Branch選択、Commit選択
 - submodule、Git LFS、sparse checkout、shallow clone
 - Viewer作成、Viewer件数のDB集計、CodexによるRepository調査
 - Clone/Syncの詳細進捗率、SSE、WebSocket
@@ -55,6 +56,7 @@ Phase 1完了時には、後続Phaseが次の情報を安全に利用できる�
 | 厳密なURL検証 | バックエンドのURL正規化関数を正式判定とする |
 | 管理対象ディレクトリへのClone | Repository ID由来のWorkspaceへ非同期Cloneする |
 | 一覧・詳細・同期 | REST APIと3画面で提供する |
+| Repository削除 | 確認ダイアログから登録情報と管理Workspaceだけを削除する |
 | Branch、Commit SHA、最終同期日時 | Clone/Sync成功時にPostgreSQLへ保存する |
 | Repository単位の排他制御 | 状態の条件付き更新とプロセス内Lockを併用する |
 | `pending / cloning / ready / syncing / failed`表示 | APIと画面で同じ状態値を使用する |
@@ -112,6 +114,17 @@ sequenceDiagram
 - 有効なGit Workspaceが存在すればSync、存在しなければCloneをやり直す。
 - 再試行のために同じURLを再登録させない。
 
+### 3.4 Repository削除
+
+1. ユーザーがRepository Dashboardで`Repositoryを削除`を押す。
+2. 画面は、削除対象と影響範囲を示す確認ダイアログを開く。
+3. ユーザーが確定すると、フロントエンドは削除APIを1回呼ぶ。
+4. バックエンドはClone/Syncなどが実行中でないことと、関連データがないことを確認する。
+5. バックエンドは管理Workspaceを削除してからDB行を削除する。
+6. 成功時はRepository一覧へ戻り、失敗時はDashboardを維持して再試行できるエラーを表示する。
+
+この操作はRepoSpec Viewer内の登録解除である。GitHub上のRepository、Branch、Commit、Issue、Pull Requestには変更を加えない。
+
 ## 4. システム構成
 
 ```mermaid
@@ -124,18 +137,20 @@ flowchart LR
     SERVICE --> STORE["RepositoryStore"]
     STORE --> PG[(PostgreSQL)]
     SERVICE --> RUNNER["RepositoryOperationRunner"]
+    SERVICE --> WORKSPACE["WorkspaceResolver"]
     RUNNER --> GIT["GitClient"]
     GIT --> PROC["git subprocess"]
     PROC --> GH["github.com"]
     PROC --> WS["Managed Workspace"]
+    WORKSPACE --> WS
 ```
 
 | Component | 責務 |
 |---|---|
 | Repository routes | HTTP入出力、status code、DTO変換 |
-| RepositoryService | 登録、取得、Sync開始、状態遷移、トランザクション境界 |
-| RepositoryStore | `repositories`テーブルの読み書き |
-| RepositoryOperationRunner | バックグラウンドTaskとRepository単位Lockの管理 |
+| RepositoryService | 登録、取得、Sync開始、削除、状態遷移、トランザクション境界 |
+| RepositoryStore | `repositories`テーブルの読み書きと削除 |
+| RepositoryOperationRunner | バックグラウンドTaskと削除を含むRepository単位Lockの管理 |
 | GitClient | 引数配列によるGit実行、タイムアウト、結果の正規化 |
 | WorkspaceResolver | Repository IDから安全なパスを導出する |
 | React pages | 一覧、登録、詳細、状態別表示、操作 |
@@ -219,6 +234,8 @@ stateDiagram-v2
 - `pending`、`cloning`、`syncing`に対する再度の操作は`REPOSITORY_BUSY`とする。
 - 起動時に処理中状態が残っていた場合は`OPERATION_INTERRUPTED`で`failed`へ変更する。
 
+削除専用の状態は追加しない。削除APIは`ready`または`failed`だけを受理し、同一HTTP request内で完了させる。処理中状態では`REPOSITORY_BUSY`を返す。
+
 ## 6. データベース設計
 
 PostgreSQL、SQLAlchemy 2系の`AsyncSession`、asyncpgを使用し、schema変更はAlembicで管理する。Phase 1では以下の1テーブルだけを追加する。
@@ -252,6 +269,7 @@ CREATE TABLE repositories (
 - DB行とWorkspace作成は単一トランザクションにできない。DB行を先に確定し、失敗を状態として保存する。
 - DB SessionをGit処理中に保持しない。状態更新ごとに短いトランザクションを使う。
 - アプリ起動時にmigrationを自動実行しない。開発・デプロイ手順で`alembic upgrade head`を明示的に実行する。
+- Repository削除では既存schemaを変更しない。Phase 2で子テーブルを追加するときは外部キーを`ON DELETE RESTRICT`とし、関連データが残るRepositoryの削除を拒否する。
 
 ## 7. GitHub URL検証
 
@@ -377,7 +395,23 @@ POST /api/repositories/{repository_id}/sync
 - `202 Accepted`、`Location`、`Retry-After: 2`と更新後のRepository表現を返す。
 - 処理中の場合は`409 REPOSITORY_BUSY`とする。
 
-### 8.6 エラーコード
+### 8.6 削除
+
+```http
+DELETE /api/repositories/{repository_id}
+```
+
+- Request bodyは受け取らない。
+- `ready`または`failed`だけを受理し、Clone/Sync中は`409 REPOSITORY_BUSY`とする。
+- 成功時は`204 No Content`を返す。
+- 対象が存在しない場合は`404 REPOSITORY_NOT_FOUND`とする。
+- 管理Workspaceが存在しない場合もDB行を削除できる。
+- Workspace削除に失敗した場合はDB行を残し、`500 DELETE_FAILED`を返す。
+- Phase 2以降でViewerなどの関連データが存在する場合は、何も削除せず`409 REPOSITORY_IN_USE`を返す。
+- GitHubへのAPI requestやGitコマンドは実行しない。
+- 削除完了後は同じGitHub URLを再登録できる。
+
+### 8.7 エラーコード
 
 | HTTP | code | 場面 | retryable |
 |---:|---|---|---:|
@@ -385,6 +419,8 @@ POST /api/repositories/{repository_id}/sync
 | 409 | `REPOSITORY_ALREADY_REGISTERED` | canonical URL重複 | No |
 | 404 | `REPOSITORY_NOT_FOUND` | Repository IDなし | No |
 | 409 | `REPOSITORY_BUSY` | Clone/Sync中 | Yes |
+| 409 | `REPOSITORY_IN_USE` | Viewerなどの関連データが存在 | No |
+| 500 | `DELETE_FAILED` | 管理Workspaceを安全に削除できない | Yes |
 | 503 | `DATABASE_UNAVAILABLE` | DB接続不能 | Yes |
 
 非同期処理中の`CLONE_FAILED`、`SYNC_FAILED`、`REPOSITORY_TOO_LARGE`、`OPERATION_INTERRUPTED`はHTTP応答ではなく、Repositoryの`status`と`last_error`へ保存する。
@@ -463,6 +499,8 @@ git -C <workspace> ls-files -z
 - owner、Repository名、URL、ユーザー入力をpathへ使用しない。
 - pathを使用するたびに`resolve`結果が管理ルート配下であることを確認する。
 - stagingの削除対象は、サーバーが生成したoperation UUIDの直下だけに限定する。
+- Repository削除対象は、DBの`workspace_key`から解決した`repositories/<repository-uuid>`直下だけに限定する。
+- 削除対象がsymlink、または通常のディレクトリ以外である場合は削除を中止する。
 - Repository内symlinkを辿って容量を集計しない。
 - `.git`を含むWorkspace全体の容量と、`git ls-files`による追跡ファイル数を検査する。
 
@@ -474,6 +512,28 @@ git -C <workspace> ls-files -z
 - アプリ停止時は新規操作を受け付けず、実行中Taskをキャンセルする。
 - 起動時に残った`pending / cloning / syncing`は`failed / OPERATION_INTERRUPTED`へ回復する。
 - 複数workerではLockを共有できないため、Phase 1の起動方法は1 workerに固定する。
+- 削除処理は同じRepository IDのTaskがないことを確認してから、同じLockをHTTP requestの完了まで保持する。
+
+### 9.6 削除処理
+
+1. Repositoryを取得し、存在しなければ`REPOSITORY_NOT_FOUND`とする。
+2. 状態が`ready`または`failed`であることを確認する。
+3. `RepositoryOperationRunner`で同じRepositoryのTaskがないことを確認し、Repository単位Lockを取得する。
+4. Lock取得後にRepositoryと状態を再取得し、競合がないことを確認する。
+5. Phase 2以降の関連データが存在する場合は`REPOSITORY_IN_USE`として終了する。
+6. `workspace_key`から削除対象を解決し、管理ルート直下のUUID directoryであることを再検証する。
+7. Workspaceが存在する場合は`asyncio.to_thread`で`shutil.rmtree`を実行する。存在しない場合は成功として続行する。
+8. Workspace削除成功後に`repositories`のDB行を削除する。
+9. Lockを解放し、`204 No Content`を返す。
+
+Workspace削除が失敗した場合はDB行を削除しない。DB行削除が失敗した場合は、Workspaceが存在しない状態でDB行を残し、`DATABASE_UNAVAILABLE`を返す。いずれの場合もDB行が残るため同じURLを再登録せず、Dashboardから削除を再試行する。
+
+次のログを同じ`trace_id`と`repository_id`で別々に記録する。
+
+- `repository.workspace_delete_started / completed / failed`
+- `repository.record_delete_started / completed / failed`
+
+GitHub上のRepositoryを変更する処理は含めない。
 
 ## 10. フロントエンド設計
 
@@ -483,7 +543,7 @@ git -C <workspace> ls-files -z
 |---|---|---|
 | `/repositories` | Repository一覧 | 一覧表示、登録画面、詳細画面への遷移 |
 | `/repositories/new` | Repository登録 | URL検証、登録 |
-| `/repositories/:repositoryId` | Repository Dashboard | 状態表示、Sync、再試行 |
+| `/repositories/:repositoryId` | Repository Dashboard | 状態表示、Sync、再試行、削除 |
 
 3 Routeは既存の`RequireAuth`配下へ追加する。Phase 0の`/chat`は残し、HeaderからChatとRepositoriesを移動できるようにする。
 
@@ -510,6 +570,7 @@ git -C <workspace> ls-files -z
 - `ready`では「最新コードを取得」を有効にする。
 - `failed`では「再試行」を有効にし、`last_error`を表示する。
 - 処理中は操作を無効化し、状態が終了するまで2秒間隔で詳細を再取得する。
+- 危険操作領域に`Repositoryを削除`を表示し、処理中または`viewer_count > 0`では無効化して理由を表示する。
 - Phase 2の「Viewerを作成」は無効状態で「Phase 2で利用可能」と表示する。
 - Viewer一覧領域は「Viewerはまだありません」のplaceholderだけを表示する。
 
@@ -521,6 +582,7 @@ git -C <workspace> ls-files -z
 | 詳細 | `['repositories', repositoryId]` |
 | 登録 | `createRepository` mutation |
 | Sync | `syncRepository` mutation |
+| 削除 | `deleteRepository` mutation |
 
 mutation成功時は関連queryへ応答値を設定してからinvalidateする。ポーリングは処理中状態だけで有効にし、画面を離れた後は停止する。
 
@@ -531,11 +593,23 @@ mutation成功時は関連queryへ応答値を設定してからinvalidateする
 | `INVALID_GITHUB_URL` | URL入力欄の直下 |
 | `REPOSITORY_ALREADY_REGISTERED` | 既存Repositoryへのリンク付きnotice |
 | `REPOSITORY_BUSY` | 現在状態を再取得して処理中表示を継続 |
+| `REPOSITORY_IN_USE` | 関連するViewer等を先に削除するよう案内 |
 | `REPOSITORY_NOT_FOUND` | 一覧へ戻る導線付きnot found |
+| `DELETE_FAILED` | Dashboardと確認ダイアログを維持し、再試行を案内 |
 | `DATABASE_UNAVAILABLE`、通信失敗 | ページ内エラーと再試行ボタン |
 | 非同期処理の`last_error` | Dashboardの状態card内 |
 
 状態は色だけでなく文字とアイコンで区別し、処理中表示には`aria-live="polite"`を使用する。
+
+### 10.7 Repository削除ダイアログ
+
+- タイトルは`Repositoryを削除しますか？`とする。
+- 対象の`full_name`を表示する。
+- 「RepoSpec Viewerの登録情報とローカルWorkspaceを削除します。GitHub上のRepositoryは削除されません。」と明記する。
+- `キャンセル`を既定のfocus先とし、`削除する`をdanger styleで表示する。
+- 削除request中は両ボタンを無効化し、二重送信を防ぐ。
+- 成功時はRepository詳細queryを削除し、一覧queryをinvalidateして`/repositories`へ遷移する。
+- 失敗時はダイアログを閉じず、Problem Detailsに対応したエラーを表示する。
 
 ## 11. 設定
 
@@ -593,6 +667,8 @@ mutation成功時は関連queryへ応答値を設定してからinvalidateする
 - GitClientがshellを使わず、timeoutと非zero exitを変換すること
 - Git stderrと絶対パスが公開エラーへ漏れないこと
 - 容量、ファイル数上限
+- Repository削除対象のUUID、管理ルート、symlink検証
+- 削除中のRepository単位Lockと二重操作拒否
 
 ### 13.2 Backend Integration
 
@@ -602,6 +678,10 @@ mutation成功時は関連queryへ応答値を設定してからinvalidateする
 - stagingから確定Workspaceへのrename
 - Clone失敗、Sync失敗、timeout、起動時中断回復
 - APIのstatus code、Problem Details、処理中状態のポーリング
+- `ready`と`failed`のRepository削除成功、Workspaceなしの削除成功
+- Clone/Sync中の削除拒否、Workspace削除失敗時のDB行保持
+- Workspace削除後にDB削除が失敗した場合の再試行
+- 削除後に同じGitHub URLを再登録できること
 
 Public URL validatorは別に検証し、ローカルGit Repositoryを通すtest seamは本番APIから呼べない構造にする。自動テストを外部GitHubの可用性へ依存させない。
 
@@ -614,6 +694,8 @@ Public URL validatorは別に検証し、ローカルGit Repositoryを通すtest
 - 処理中だけポーリングし、readyまたはfailedで停止すること
 - Syncボタンと再試行ボタンの状態制御
 - API失敗後も画面から再試行できること
+- Repository削除ダイアログの表示、キャンセル、二重送信防止
+- 削除成功後の一覧遷移とcache更新、失敗時のDashboard維持
 
 ### 13.4 手動検証: GHAgentDev
 
@@ -651,6 +733,15 @@ Repositoryの公開状態変更は本実装や自動テストから行わない�
 
 実装はこの順序で進めるが、Phase 1を完了していない途中状態を`main`へ直接入れない。Pull Requestの差分とテスト結果をユーザーが確認し、承認後にユーザーがmergeする。
 
+### 14.1 Repository削除機能の追加実装順序
+
+1. WorkspaceResolver、RepositoryStore、RepositoryOperationRunnerへ削除処理を追加する。
+2. RepositoryServiceと`DELETE /api/repositories/{repository_id}`を追加する。
+3. Repository Dashboardへ削除確認ダイアログとmutationを追加する。
+4. Backend、Frontendの削除テストと実ブラウザ確認を行う。
+
+削除機能はPhase 1本体の実装後に追加された仕様であり、既存の登録・Clone・Sync契約を変更しない。
+
 ## 15. 完了条件
 
 1. Public GitHub URLだけを受け付け、危険または曖昧なURLを拒否できる。
@@ -664,6 +755,11 @@ Repositoryの公開状態変更は本実装や自動テストから行わない�
 9. プロセス再起動後に処理中状態が`failed`へ回復する。
 10. BackendとFrontendの自動テスト、lint、buildが成功する。
 11. GHAgentDevを使った検証結果と、公開状態による制約が記録される。
+12. `ready`または`failed`のRepositoryを確認後に削除できる。
+13. 削除によりアプリのDB行と管理Workspaceだけがなくなり、GitHub上のRepositoryは変更されない。
+14. Clone/Sync中や関連データが存在するRepositoryの削除が拒否される。
+15. Workspace削除に失敗した場合はDB行が残り、削除を再試行できる。
+16. 削除完了後に同じGitHub URLを再登録できる。
 
 ## 16. Phase 2への引き継ぎ
 
@@ -671,7 +767,11 @@ Phase 2は`status = ready`のRepositoryだけをViewer生成対象にする。Ge
 
 Phase 2でViewerを古いCommitへ固定した後もソースを参照できるよう、必要なCommitをGit refで保持する方式はPhase 2詳細設計で決定する。Phase 1ではfull cloneとし、自動`git gc`は実行しない。
 
+Phase 2でViewer等の子テーブルを追加するときはRepository外部キーを`ON DELETE RESTRICT`とし、関連データが残るRepository削除を`REPOSITORY_IN_USE`で拒否する。子データを連鎖削除する仕様は設けない。
+
 ## 17. 実装確認結果（2026-10-01）
+
+この節の確認結果は登録・Clone・一覧・詳細・Syncを対象とする。2026-10-08に追加したRepository削除機能は未実装であり、以下の結果には含まれない。
 
 - Backend: Ruff check / format check 成功、Pytest 28件成功
 - Frontend: Vitest 6件成功、ESLint成功、TypeScript + Vite production build成功
