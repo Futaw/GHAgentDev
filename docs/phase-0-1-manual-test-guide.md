@@ -1,6 +1,6 @@
 # Phase 0・1 手動テストガイド
 
-- 更新日: 2026-10-08
+- 更新日: 2026-10-10
 - 対象: RepoSpec Viewer Phase 0「Codex接続と最小チャット」、Phase 1「Repository管理」
 - 想定環境: macOS、PostgreSQL 17、Python 3.12以上、Node.js 24、Codex CLI
 
@@ -37,7 +37,7 @@
 | 5 | アプリ | `codex app-server`起動、初期化、Workspace準備、中断状態の回復 | FastAPI起動時 |
 | 6 | ユーザー | Viteフロントエンドを起動 | 毎回 |
 | 7 | ユーザーとアプリ | Phase 0の認証・チャット・中止・再接続を確認 | 手動テスト時 |
-| 8 | ユーザーとアプリ | Phase 1の登録・Clone・重複防止・Sync・失敗・再試行を確認 | 手動テスト時 |
+| 8 | ユーザーとアプリ | Phase 1の登録・Clone・重複防止・Sync・失敗・再試行・削除を確認 | 手動テスト時 |
 | 9 | ユーザー | `Ctrl+C`でViteとFastAPIを終了 | 手動テスト終了時 |
 
 ### 1.4 起動から機能実行までの流れ
@@ -51,6 +51,7 @@ sequenceDiagram
     participant Codex as Codex App Server
     participant DB as PostgreSQL
     participant Git as Git / GitHub
+    participant Workspace as ローカル管理Workspace
 
     User->>API: uvicornを起動
     API->>Codex: codex app-serverを子プロセス起動
@@ -67,6 +68,11 @@ sequenceDiagram
     API->>Git: Clone / Fetch / Reset
     Git-->>API: Branch / Commit SHA
     API-->>Vite: Repository状態
+    User->>Browser: Repository削除を確定
+    Vite->>API: DELETE /api/repositories/{repository_id}
+    API->>Workspace: 管理Workspaceを削除
+    API->>DB: Repository登録情報を削除
+    API-->>Vite: 204 No Content
 ```
 
 ## 2. ユーザーが実行するコマンド一覧
@@ -274,6 +280,21 @@ SSH_ASKPASS=
 
 Syncは管理Workspaceを`reset --hard`と`clean -ffdx`でGitHub上の状態へ揃える。管理Workspaceを人が作業用ディレクトリとして使用してはならない。
 
+#### Repository削除
+
+| 順番 | HTTPまたは内部処理 | 起こること |
+|---:|---|---|
+| 1 | `DELETE /api/repositories/{repository_id}` | Frontendが削除要求を送る。 |
+| 2 | 状態確認 | 対象が`ready`または`failed`であることを確認する。 |
+| 3 | Repository単位の排他Lock | 同じRepositoryのClone、Sync、削除が同時に動かないようにする。 |
+| 4 | 再取得と関連データ確認 | Lock取得後に状態を再確認し、関連するViewerなどがないことを確認する。 |
+| 5 | 管理Workspaceの安全確認 | 削除対象が`<WORKSPACE_ROOT>/repositories`直下の通常のディレクトリであり、symlinkではないことを確認する。 |
+| 6 | `shutil.rmtree(<repository-workspace>)` | Pythonのファイル操作でローカル管理Workspaceを削除する。シェルの`rm`コマンドは実行しない。 |
+| 7 | DB行の削除 | `repositories`テーブルから対象の登録情報を削除する。 |
+| 8 | `204 No Content` | Response Bodyなしで成功を返す。Frontendは一覧を再取得してRepository一覧へ移動する。 |
+
+この処理はRepoSpec Viewerが管理するローカルWorkspaceとDBの登録情報だけを削除する。GitHub APIやGitの削除コマンドは呼ばないため、GitHub上のRepository、Branch、Commitには影響しない。
+
 ## 4. Phase 0の手動テスト
 
 ### 4.1 起動と認証状態
@@ -468,7 +489,15 @@ curl -i \
   http://127.0.0.1:8000/api/repositories/<REPOSITORY_ID>/sync
 ```
 
-HTTP `409`と`REPOSITORY_BUSY`が返ることを確認する。Repositoryが小さく、すぐにSyncが終わる場合は再現しにくいため、この項目は自動テスト結果も併用する。
+処理中の削除もAPIから確認する場合は、CloneまたはSyncが終わる前に次を実行する。
+
+```bash
+curl -i \
+  -X DELETE \
+  http://127.0.0.1:8000/api/repositories/<REPOSITORY_ID>
+```
+
+どちらもHTTP `409`と`REPOSITORY_BUSY`が返ることを確認する。Repositoryが小さく、すぐに処理が終わる場合は再現しにくいため、この項目は自動テスト結果も併用する。
 
 ### 5.7 Private Repositoryまたは存在しないRepository
 
@@ -491,18 +520,35 @@ uvicorn backend.app.main:app --workers 1 --host 127.0.0.1 --port 8000
 
 ### 5.9 Repository削除
 
-Repository削除の実装はPull Request #11にあり、2026-10-08時点で`main`には未反映である。PR #11がマージされた後にこの項目を実施する。
+削除テストには、削除しても問題のないPublic Repositoryを使用する。アプリが削除するのは登録情報とローカル管理Workspaceであり、GitHub上のRepositoryは削除しない。
+
+#### 画面から削除する
 
 1. `ready`または`failed`のRepository Dashboardを開く。
 2. `Repositoryを削除`を押す。
-3. 確認ダイアログに、アプリの登録情報とローカルWorkspaceだけが削除され、GitHub上のRepositoryは削除されないと表示されることを確認する。
-4. `キャンセル`でDashboardに残ることを確認する。
-5. もう一度開き、確定操作を行う。
-6. 一覧へ戻り、対象が表示されないことを確認する。
-7. GitHub上のRepositoryが残っていることを確認する。
-8. 同じURLを再登録できることを確認する。
+3. 確認ダイアログに対象の`owner/repository`が表示されることを確認する。
+4. ダイアログに、登録情報とローカルWorkspaceだけを削除し、GitHub上のRepositoryは削除しないと表示されることを確認する。
+5. ダイアログを開いた直後に`キャンセル`へフォーカスが当たっていることを確認する。
+6. `キャンセル`を押し、ダイアログが閉じてもDashboardとRepositoryが残ることを確認する。
+7. ダイアログをもう一度開き、`削除する`を押す。
+8. 応答を待っている間に確認できる場合は、ボタンが`削除しています…`へ変わり、確定とキャンセルの両方が無効になることを確認する。
+9. 成功後にRepository一覧へ移動し、対象が表示されないことを確認する。
+10. Dashboardの元のURLを開くと`Repositoryが見つかりません`と表示されることを確認する。
+11. Dashboardに表示されていたGitHub URLを開き、GitHub上のRepositoryが残っていることを確認する。
+12. 同じGitHub URLをもう一度登録し、新しいRepository IDでCloneを開始できることを確認する。
 
-APIから削除する場合は次を実行する。
+CloneまたはSync中はDashboardの削除ボタンが無効になり、`Cloneまたは同期の完了後に削除できます。`と表示される。Phase 1ではViewerをまだ作成できないが、関連するViewerがある場合も削除ボタンが無効になる。
+
+#### APIから削除する
+
+削除前に対象が存在することを確認する。
+
+```bash
+curl -i \
+  http://127.0.0.1:8000/api/repositories/<REPOSITORY_ID>
+```
+
+次のコマンドで削除する。
 
 ```bash
 curl -i \
@@ -510,7 +556,30 @@ curl -i \
   http://127.0.0.1:8000/api/repositories/<REPOSITORY_ID>
 ```
 
-成功時はHTTP `204 No Content`である。アプリはRepository単位のLockを取り、管理Workspaceを削除した後にDB行を削除する。CloneまたはSync中は`409 REPOSITORY_BUSY`、将来Viewerが存在する場合は`409 REPOSITORY_HAS_DEPENDENCIES`となる。
+成功時はHTTP `204 No Content`が返り、Response Bodyは空になる。削除後は次の2つを実行する。
+
+```bash
+curl -i \
+  http://127.0.0.1:8000/api/repositories/<REPOSITORY_ID>
+
+curl -sS \
+  http://127.0.0.1:8000/api/repositories
+```
+
+1つ目のコマンドがHTTP `404`と`REPOSITORY_NOT_FOUND`を返し、2つ目の一覧に対象IDが含まれないことを確認する。その後、同じURLを5.3の`POST /api/repositories`で再登録できることを確認する。
+
+削除APIの主な応答は次のとおりである。
+
+| 条件 | HTTPとコード | 削除結果 |
+|---|---|---|
+| `ready`または`failed`で関連データがない | `204 No Content` | Workspaceを削除した後にDB行を削除する。 |
+| `pending`、`cloning`、`syncing` | `409 REPOSITORY_BUSY` | WorkspaceとDB行を残す。 |
+| 関連するViewerなどがある | `409 REPOSITORY_IN_USE` | WorkspaceとDB行を残す。Phase 1では通常発生しない。 |
+| Repository IDが存在しない | `404 REPOSITORY_NOT_FOUND` | 何も削除しない。 |
+| Workspaceを安全に削除できない | `500 DELETE_FAILED` | DB行を残し、画面の確認ダイアログに再試行可能なエラーを表示する。 |
+| DBへ接続できない | `503 DATABASE_UNAVAILABLE` | エラーを返す。Workspaceが先に削除済みでも、同じDELETEを再試行できる。 |
+
+`DELETE_FAILED`やDatabase障害を故意に起こすには管理WorkspaceやDatabaseの変更が必要になるため、通常の手動テストでは行わない。これらは`backend/tests/integration/test_repository_delete.py`で確認する。
 
 ## 6. エラーと確認ポイント
 
@@ -523,6 +592,8 @@ curl -i \
 | Clone開始後に`OPERATION_INTERRUPTED` | FastAPIがClone中に終了または再起動 | `--reload`なしでFastAPIを起動し、画面から再試行する。 |
 | Repositoryが`CLONE_FAILED` | Private、存在しない、GitHubへの接続失敗 | URLとPublic設定を確認する。Git認証は入力しない。 |
 | Repositoryが`REPOSITORY_TOO_LARGE` | 1 GiBまたは100,000ファイルの上限超過 | より小さな手動テスト用Repositoryを使う。 |
+| 削除ボタンが無効 | Clone・Sync中、または関連するViewerがある | 処理完了を待つ。Viewerがある場合は先にViewerを削除する。 |
+| 削除時に`DELETE_FAILED` | 管理Workspaceを安全に削除できない | FastAPIログの`trace_id`を確認し、原因を直してから画面またはDELETE APIで再試行する。 |
 | 画面がAPIへ接続できない | FastAPI停止、またはポート違い | `curl -sS http://127.0.0.1:8000/api/health` |
 
 ## 7. 手動テスト完了チェックリスト
@@ -551,7 +622,9 @@ curl -i \
 - [ ] 失敗後に再試行できた。
 - [ ] 中断した処理が`OPERATION_INTERRUPTED`へ回復した。
 - [ ] エラー応答に認証情報、Git stderr全文、ローカル絶対パスが含まれていなかった。
-- [ ] PR #11のマージ後、Repository削除と同じURLの再登録を確認できた。
+- [ ] 削除確認ダイアログの説明とキャンセル動作を確認できた。
+- [ ] Repository削除後に一覧から消え、元のDashboardが`404`になった。
+- [ ] GitHub上のRepositoryが残り、同じURLを再登録できた。
 
 ## 8. 補助的な自動確認
 
