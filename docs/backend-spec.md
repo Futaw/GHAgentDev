@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.3
-- 更新日: 2026-10-08
+- 文書バージョン: v0.4
+- 更新日: 2026-10-18
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -241,14 +241,17 @@ POST   /api/repositories/{repository_id}/viewers
 GET    /api/viewers/{viewer_id}
 DELETE /api/viewers/{viewer_id}
 POST   /api/viewers/{viewer_id}/regenerate
-PATCH  /api/viewers/{viewer_id}/theme
+PATCH  /api/viewers/{viewer_id}/appearance
 
 GET    /api/generation-jobs/{job_id}
 GET    /api/generation-jobs/{job_id}/events
 POST   /api/generation-jobs/{job_id}/cancel
+POST   /api/generation-jobs/{job_id}/retry
 ```
 
-Viewer作成は`202 Accepted`を返す。まだViewerが存在しない時点で`viewer_id`を返す設計にする場合は、Viewerを`draft | ready | failed`の状態で管理する。
+ThemeとDensityを同時に扱う。詳細なrequestとresponseは[Phase 2 詳細設計書](./phase-2-detailed-design.md)を参照する。
+
+Viewer作成は`202 Accepted`で`job_id`を返し、この時点の`viewer_id`は`null`とする。ViewerはGeneration成功時だけ保存し、生成途中・失敗・中止はGeneration Jobで管理する。
 
 ### 7.2 Generation Job pipeline
 
@@ -291,7 +294,7 @@ Codexへ渡す入力には少なくとも以下を含める。
 - ファイル参照をRepository相対パスと行範囲で返すこと
 - ViewerDocument JSON Schema
 
-Themeは文章の読者調整に必要な場合を除き、Codex入力に混ぜない。見た目はrendererの責務とする。
+ThemeとDensityはCodex入力に混ぜない。見た目はrendererとアプリ管理CSSの責務とする。
 
 ### 7.4 ViewerDocument
 
@@ -326,6 +329,8 @@ Themeは文章の読者調整に必要な場合を除き、Codex入力に混ぜ�
 
 実際にはblock typeを列挙型とし、未知のHTMLや任意のCSS/JavaScriptを受け付けない。ソース参照はバックエンドが実ファイルと行数に対して再検証する。
 
+blockは`paragraph`、`bullet_list`、`key_value`、`table`、`code`、`callout`、`steps`、`flow`、`state_diagram`、`comparison`、`component_map`、`source_evidence`を初期catalogとする。セクション名とblock順は内容に応じて変え、空または無関係なセクションを固定表示しない。
+
 ### 7.5 HTML renderer
 
 - 入力はvalidation済みViewerDocumentのみ
@@ -335,6 +340,8 @@ Themeは文章の読者調整に必要な場合を除き、Codex入力に混ぜ�
 - Theme CSSはHTMLと別管理する
 - 再生成なしのテーマ変更を可能にする
 - renderer versionをViewerに保存し、将来の再レンダリングに備える
+- Codexは意味に合うblockを選び、rendererが表示幅とレスポンシブ配置を決める
+- Themeは配色と書体、Densityは余白と文字量をCSSで変更する
 
 ## 8. Viewer内Q&A
 
@@ -416,26 +423,24 @@ latest_commit_sha, status, last_synced_at, created_at, updated_at
 ### Viewer
 
 ```text
-id, repository_id, status, title, description, document_type,
-detail_level, target_audience, theme_id, content_json, sanitized_html,
-prompt, additional_instruction, commit_sha, renderer_version,
-created_at, updated_at
+id, repository_id, title, summary, document_type,
+detail_level, target_audience, theme_slug, density, content_json, sanitized_html,
+request, additional_instruction, commit_sha, renderer_version,
+content_revision, created_at, updated_at
 ```
 
-### Theme
-
-```text
-id, name, slug, description, css_class, is_active,
-created_at, updated_at
-```
+Phase 2のViewerは生成成功時だけ作成するため、詳細設計では`status`を持たない。Themeは組み込みcatalogとし、Phase 2ではThemeテーブルを作成しない。
 
 ### GenerationJob
 
 ```text
-id, repository_id, viewer_id, status, current_phase, prompt,
-document_type, detail_level, target_audience, theme_id,
-codex_thread_id, codex_turn_id, commit_sha,
-started_at, completed_at, error_code, error_message, created_at
+id, repository_id, viewer_id, retry_of_job_id, operation, status,
+current_phase, request,
+additional_instruction, document_type, detail_level, target_audience,
+theme_slug, density, base_viewer_revision, commit_sha,
+codex_thread_id, codex_turn_id, idempotency_key, request_hash,
+cancel_requested_at, started_at, completed_at,
+error_code, error_message, error_retryable, created_at, updated_at
 ```
 
 ### Conversation

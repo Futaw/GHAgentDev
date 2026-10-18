@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.2
-- 更新日: 2026-10-08
+- 文書バージョン: v0.3
+- 更新日: 2026-10-18
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -157,6 +157,7 @@ SSEイベントはバックエンドの内部JSON-RPCをそのまま表示せず
 | Detail Level | select | `standard` |
 | Target Audience | select | `engineer` |
 | Theme | select + preview | `technical-light` |
+| Density | select + preview | `comfortable` |
 | Request | textarea, required | なし |
 | Additional Instruction | textarea, optional | なし |
 
@@ -176,27 +177,27 @@ SSEイベントはバックエンドの内部JSON-RPCをそのまま表示せず
 
 ### 6.3 Viewer画面
 
-Desktopでは主領域と右ペインの2カム構成とする。
+Viewer画面は共通Header、目次、本文領域を持つ。ただし、本文を1つの固定レイアウトへ当てはめない。構造化されたblockの種類と情報量に応じて、rendererが全幅または複数列の配置を決める。
+
+Phase 2のDesktop構成は次のとおり。
 
 ```text
 +----------------------------------------------------------------+
 | Viewer Header                                                  |
-+-------------------------------------------+--------------------+
-| HTML Document                             | Ask Codex          |
-| 目次 / 本文 / 表 / コード / 参照         | Conversation       |
-|                                           | Input              |
-+-------------------------------------------+--------------------+
++------------------+---------------------------------------------+
+| Table of contents| HTML Document                               |
+|                  | Typed blocks / source references            |
++------------------+---------------------------------------------+
 ```
 
-MobileではチャットをDrawerまたは別タブに切り替える。Viewer Headerにはタイトル、Repository、Branch、Commit SHA、文書種別、詳細度、対象読者、テーマ、作成日時を表示する。
+Phase 3でAsk Codexを追加するときは、Desktopでは右ペイン、MobileではDrawerまたは別タブに切り替える。Viewer Headerにはタイトル、Repository、Branch、Commit SHA、文書種別、詳細度、対象読者、テーマ、表示密度、作成日時を表示する。
 
-主要操作:
+主要操作は次のとおり。
 
 - 再生成
-- テーマ変更
+- 表示設定変更（Theme / Density）
 - 削除
 - GitHubを開く
-- 右ペインの開閉
 
 ### 6.4 HTML表示の安全性
 
@@ -206,6 +207,8 @@ MobileではチャットをDrawerまたは別タブに切り替える。Viewer H
 - テーマはアプリが持つCSS class/CSS variablesで適用する
 - 外部リンクは別タブで開き、`noopener noreferrer`を付与する
 - Repository内ソース参照は通常のHTMLリンクではなく、構造化参照IDからアプリ内操作に変換する
+
+Viewerのblock種類、配置規則、ThemeとDensityの責務は[Phase 2 詳細設計書](./phase-2-detailed-design.md)を参照する。完成時の画面モックは生成結果の一例であり、本文の固定構成を定めるものではない。
 
 ## 7. Phase 3: Viewer内Q&AとSource Code Viewer
 
@@ -288,7 +291,8 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 - Viewer作成フォームのvalidation
 - SSE event reducerの順序性と重複排除
 - ソース参照のパス検証
-- Theme切り替え
+- Theme / Density切り替え
+- blockの組み合わせとレスポンシブ表示
 - Repository削除の確認、キャンセル、成功、失敗
 
 ### E2E
