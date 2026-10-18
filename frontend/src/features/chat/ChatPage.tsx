@@ -20,6 +20,7 @@ export function ChatPage() {
   const [streamState, setStreamState] = useState<'connected' | 'reconnecting'>('connected')
   const [state, dispatch] = useReducer(chatReducer, initialChatState)
   const endRef = useRef<HTMLDivElement>(null)
+  const isComposingRef = useRef(false)
   const sessionRequestedRef = useRef(false)
   const createSession = useMutation({
     mutationFn: () => api<ChatSession>('/api/chat/sessions', { method: 'POST' }),
@@ -83,10 +84,10 @@ export function ChatPage() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [state.messages])
 
-  const submit = (event?: FormEvent, retryText?: string) => {
-    event?.preventDefault()
+  const submit = (retryText?: string) => {
     const content = (retryText ?? input).trim()
-    if (!content || !sessionId || turn || send.isPending) return
+    if (!content || !sessionId || turn || send.isPending) return false
+    isComposingRef.current = false
     setLastInput(content)
     setInput('')
     dispatch({
@@ -95,6 +96,12 @@ export function ChatPage() {
       assistant: newOptimisticMessage('assistant', ''),
     })
     send.mutate({ id: sessionId, content })
+    return true
+  }
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    submit()
   }
 
   const cancel = async () => {
@@ -130,19 +137,31 @@ export function ChatPage() {
           {state.error && (
             <div className="error-card" role="alert">
               <p>{state.error}</p>
-              <button onClick={() => submit(undefined, lastInput)}>同じ内容を再送信</button>
+              <button onClick={() => submit(lastInput)}>同じ内容を再送信</button>
             </div>
           )}
           <div ref={endRef} />
         </div>
-        <form className="composer" onSubmit={submit}>
+        <form className="composer" onSubmit={handleSubmit}>
           <label htmlFor="chat-input" className="sr-only">Codexへの質問</label>
           <textarea
             id="chat-input"
             value={input}
             onChange={(event) => setInput(event.target.value)}
+            onCompositionStart={() => {
+              isComposingRef.current = true
+            }}
+            onCompositionEnd={() => {
+              isComposingRef.current = false
+            }}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) submit(event)
+              // Composition境界でisComposingがfalseになるブラウザ向けの互換判定。
+              const isImeBoundary = event.nativeEvent.keyCode === 229
+              const isImeInput = isComposingRef.current
+                || event.nativeEvent.isComposing
+                || isImeBoundary
+              if (event.key !== 'Enter' || event.shiftKey || isImeInput) return
+              if (submit()) event.preventDefault()
             }}
             placeholder="このWorkspaceについて質問する"
             disabled={!sessionId || busy}
