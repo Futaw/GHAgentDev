@@ -1,6 +1,6 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.3
+- 文書バージョン: v0.4
 - 更新日: 2026-10-18
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
@@ -89,7 +89,35 @@ Phase 0では以下だけを実装する。
 
 MVPは読み取り専用・承認不要のポリシーで実行し、App Serverから予期しない承認要求が届いた場合はバックエンドが拒否し、画面に実行エラーを表示する。
 
-### 4.3 ストリーミング表示
+### 4.3 Chat入力と送信判定
+
+Chat入力欄は、送信ボタンとキーボードの両方から送信できる。キーボード操作は次のとおりとする。
+
+| 操作 | 動作 |
+|---|---|
+| IME変換中のEnter | 変換候補の確定に使用し、送信しない |
+| IME変換完了後のEnter | 入力内容を送信する |
+| Shift + Enter | 改行し、送信しない |
+| 送信ボタン | 明示的な送信操作として入力内容を送信する |
+
+`textarea`は`compositionstart`から`compositionend`までをIME変換中として管理する。Reactの再描画を待たずに同じevent sequence内で参照できるよう、変換状態はcomponent内のrefへ保持する。
+
+Enterによる送信は、次の条件を全て満たす場合だけ実行する。
+
+1. `event.key === 'Enter'`
+2. `event.shiftKey === false`
+3. componentが保持する変換状態が`false`
+4. `event.nativeEvent.isComposing === false`
+5. `event.nativeEvent.keyCode !== 229`
+6. 入力値に空白以外の文字を含み、Sessionが利用可能で、Turn送信中ではない
+
+`keyCode`は非推奨であるため、Enterそのものの判定には使用しない。Composition境界のkeydownで`isComposing`が`false`になるブラウザ差異に対応するため、`229`を送信抑止専用の互換判定として使用する。
+
+IME変換中、Shift + Enter、または送信条件を満たさないEnterでは、送信処理、入力欄のクリア、User Messageの追加を行わない。IME変換中のkeydownでは`preventDefault()`も呼ばず、IMEによる候補確定を妨げない。`compositionend`だけでは送信せず、その後の通常のEnterまたは送信ボタンを利用者の送信操作として扱う。
+
+参考仕様は[UI Events](https://www.w3.org/TR/uievents/)と[MDNのkeydown event](https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event)とする。
+
+### 4.4 ストリーミング表示
 
 SSEイベントはバックエンドの内部JSON-RPCをそのまま表示せず、以下のUI向けイベントに変換する。
 
@@ -288,6 +316,10 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 ### Unit / Component
 
 - ログイン状態ごとの表示
+- IME変換中のEnterで送信せず、入力内容を保持すること
+- Composition境界で`isComposing = false`かつ`keyCode = 229`のEnterを送信しないこと
+- `compositionend`後の通常Enter、送信ボタンで1回だけ送信すること
+- Shift + Enterで送信せず、改行操作を妨げないこと
 - Viewer作成フォームのvalidation
 - SSE event reducerの順序性と重複排除
 - ソース参照のパス検証
@@ -297,11 +329,12 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 
 ### E2E
 
-1. 認証済み状態からチャット送信し、逐次回答を表示できる。
-2. Repositoryを登録し、Clone完了後にDashboardを表示できる。
-3. Viewerを生成し、進捗画面から生成済みViewerへ遷移できる。
-4. Viewerへ質問し、参照をクリックしてSource Code Viewerを開ける。
-5. Repository削除を確認すると一覧へ戻り、キャンセルするとDashboardに留まる。
+1. 日本語IMEで入力し、変換確定では送信せず、確定後のEnterで1回だけ送信できる。
+2. 認証済み状態からチャット送信し、逐次回答を表示できる。
+3. Repositoryを登録し、Clone完了後にDashboardを表示できる。
+4. Viewerを生成し、進捗画面から生成済みViewerへ遷移できる。
+5. Viewerへ質問し、参照をクリックしてSource Code Viewerを開ける。
+6. Repository削除を確認すると一覧へ戻り、キャンセルするとDashboardに留まる。
 
 ## 13. 想定ディレクトリ
 
