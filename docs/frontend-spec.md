@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.4
-- 更新日: 2026-10-18
+- 文書バージョン: v0.5
+- 更新日: 2026-10-19
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -73,7 +73,7 @@ Phase 0では以下だけを実装する。
 - Codex回答一覧
 - テキスト入力
 - 送信ボタン
-- 実行中インジケータ
+- 処理段階と経過時間を示す実行中インジケータ
 - 中止ボタン
 - エラーと再送信
 - App Server接続状態
@@ -88,6 +88,8 @@ Phase 0では以下だけを実装する。
 - 承認ダイアログ
 
 MVPは読み取り専用・承認不要のポリシーで実行し、App Serverから予期しない承認要求が届いた場合はバックエンドが拒否し、画面に実行エラーを表示する。
+
+Phase 0 Chatは環境設定の`TEST_CHAT_WORKSPACE`を対象とし、登録済みRepositoryは参照しない。Repositoryが0件でも利用できることを画面上で説明し、Repository数を理由に入力欄を無効化しない。
 
 ### 4.3 Chat入力と送信判定
 
@@ -123,15 +125,43 @@ SSEイベントはバックエンドの内部JSON-RPCをそのまま表示せず
 
 | Event | UIの処理 |
 |---|---|
-| `turn.started` | 実行中表示に切り替える |
-| `message.delta` | 現在のAssistant Messageの末尾へ追記する |
-| `activity.started` | 安全に表示できる作業概要を進捗欄へ追加する |
-| `activity.completed` | 対応する作業を完了表示にする |
+| `turn.started` | `Codexの処理を開始しています`へ切り替える |
+| `message.delta` | 累積回答で現在のAssistant Messageを更新し、`回答を作成しています`へ切り替える |
+| `activity.started` | 安全に表示できる作業概要を進捗欄へ表示する |
+| `activity.completed` | 完了した作業概要から次の進捗表示へ切り替える |
 | `turn.completed` | 入力を再度有効化する |
 | `turn.failed` | 復帰可能なエラーと再試行を表示する |
 | `heartbeat` | 接続維持にのみ使用し、画面には表示しない |
 
 モデルの非公開の推論内容はUIに表示しない。進捗表示は、Turn状態、計画の公開更新、Itemの開始/完了など、表示用に変換された事実ベースのイベントに限定する。
+
+Message送信APIが`202 Accepted`を返した時点から、進捗領域へ処理段階と経過時間を表示する。30秒を超えた場合は、処理が継続中であることと通常より時間がかかっていることを表示する。完了予定時刻は表示しない。
+
+SSEが切断した場合は、回答中の表示を消さずに`進捗表示へ再接続しています`と表示する。同じEventが再送されても回答を重複させないよう、`message.delta`の累積回答を正としてAssistant Messageを更新する。
+
+### 4.5 Sessionの維持と復帰
+
+ChatのSession、Turn、Message、SSEは、認証済みLayoutの子Routeより外側にある`ChatSessionProvider`で管理する。回答中にRepositoriesへ移動してもProviderとSSEを維持し、Chatへ戻った際に同じSessionとTurnを表示する。
+
+同一タブでブラウザを再読み込みした場合に備え、Session IDだけを`sessionStorage`へ保存する。Chatを再表示すると、Session snapshotからMessage、実行中Turn、進捗、SSEの再開位置を復元する。Message本文、Codex Thread ID、認証情報はWeb Storageへ保存しない。
+
+保存済みSessionが`404`の場合は、FastAPI再起動等でSessionが失われたものとしてIDを削除し、新しいSessionを1回だけ作成する。`502`、`503`、通信失敗の場合はIDを維持し、エラーと再試行操作を表示する。
+
+### 4.6 Session作成エラー
+
+Chatを初めて開いたときのSession作成は1回だけ自動実行する。Session作成が失敗した後は、Reactの再描画、Health polling、Route遷移を契機に自動で再試行しない。
+
+エラー表示はAPIの`Problem Details`を使い、少なくとも次を区別する。
+
+| code | 表示と操作 |
+|---|---|
+| `CODEX_UNAVAILABLE` | App Serverへ接続できないことを表示し、再試行を提示する |
+| `CODEX_TIMEOUT` | Codex要求が時間内に応答しなかったことを表示し、再試行を提示する |
+| `CODEX_TURN_FAILED` | Codex要求が失敗したことを表示し、再試行を提示する |
+| `RESOURCE_NOT_FOUND` | 保存済みIDを破棄し、新規Session作成へ進む |
+| `NETWORK_ERROR` | Backendへの接続確認と再試行を提示する |
+
+入力欄はSessionが利用可能になるまで無効化し、無効である理由を進捗領域またはエラー領域へ表示する。エラー領域には、Backendログと照合するための`trace_id`も表示する。詳細は[Phase 0 Chat進捗・セッション復帰 詳細設計書](./phase-0-chat-recovery-detailed-design.md)に定める。
 
 ## 5. Phase 1: Repository画面
 
@@ -271,6 +301,8 @@ Viewerのblock種類、配置規則、ThemeとDensityの責務は[Phase 2 詳細
 - Conversation履歴
 - Generation Job状態
 
+Phase 0 ChatのSession作成POSTは、自動再試行するMutationとして管理しない。Session、実行中Turn、Message、SSE接続は`ChatSessionProvider`が管理し、Session IDだけを`sessionStorage`へ保存する。
+
 ### 8.2 ローカルUI state
 
 - Form入力中の値
@@ -320,6 +352,10 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 - Composition境界で`isComposing = false`かつ`keyCode = 229`のEnterを送信しないこと
 - `compositionend`後の通常Enter、送信ボタンで1回だけ送信すること
 - Shift + Enterで送信せず、改行操作を妨げないこと
+- Session作成失敗後に自動再試行せず、明示的な再試行だけを受け付けること
+- 画面移動と再読み込み後に同じChat Sessionと実行中Turnへ復帰すること
+- SSE Eventの再送でAssistant Messageを重複させないこと
+- Turnの処理段階、経過時間、遅延案内、再接続状態を表示すること
 - Viewer作成フォームのvalidation
 - SSE event reducerの順序性と重複排除
 - ソース参照のパス検証
@@ -330,11 +366,13 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 ### E2E
 
 1. 日本語IMEで入力し、変換確定では送信せず、確定後のEnterで1回だけ送信できる。
-2. 認証済み状態からチャット送信し、逐次回答を表示できる。
-3. Repositoryを登録し、Clone完了後にDashboardを表示できる。
-4. Viewerを生成し、進捗画面から生成済みViewerへ遷移できる。
-5. Viewerへ質問し、参照をクリックしてSource Code Viewerを開ける。
-6. Repository削除を確認すると一覧へ戻り、キャンセルするとDashboardに留まる。
+2. Repositoryが0件でもチャットを送信し、進捗と逐次回答を表示できる。
+3. 回答中に別画面へ移動またはブラウザを再読み込みし、同じSessionとTurnへ復帰できる。
+4. Session作成失敗時に自動再試行せず、App Server復旧後の明示的な再試行で利用可能になる。
+5. Repositoryを登録し、Clone完了後にDashboardを表示できる。
+6. Viewerを生成し、進捗画面から生成済みViewerへ遷移できる。
+7. Viewerへ質問し、参照をクリックしてSource Code Viewerを開ける。
+8. Repository削除を確認すると一覧へ戻り、キャンセルするとDashboardに留まる。
 
 ## 13. 想定ディレクトリ
 
