@@ -1398,7 +1398,7 @@ html&gt;body{padding:0}&lt;/style&gt;
           guide: &#x27;Viewer作成での操作&#x27;,
           notes: [
             &#x27;Codexに調査してほしい機能・処理を具体的に入力します。&#x27;,
-            &#x27;文書種別、詳細度、対象読者、テーマを選ぶと、同じ調査内容でも説明の構成を調整できます。&#x27;,
+            &#x27;文書種別、詳細度、対象読者は説明内容を調整し、テーマと表示密度は見た目だけを切り替えます。&#x27;,
             &#x27;「生成を開始」でGeneration Jobを作成し、進捗画面へ移動します。&#x27;
           ],
           html: `
@@ -1411,7 +1411,8 @@ html&gt;body{padding:0}&lt;/style&gt;
                   &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-document-type&quot;&gt;文書種別&lt;/label&gt;&lt;select id=&quot;rsv-document-type&quot;&gt;&lt;option&gt;機能仕様書&lt;/option&gt;&lt;option&gt;技術解説&lt;/option&gt;&lt;option&gt;処理フロー&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
                   &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-detail-level&quot;&gt;詳細度&lt;/label&gt;&lt;select id=&quot;rsv-detail-level&quot;&gt;&lt;option&gt;標準&lt;/option&gt;&lt;option&gt;概要&lt;/option&gt;&lt;option&gt;詳細&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
                   &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-audience&quot;&gt;対象読者 ${hotspot(2)}&lt;/label&gt;&lt;select id=&quot;rsv-audience&quot;&gt;&lt;option&gt;エンジニア&lt;/option&gt;&lt;option&gt;初学者&lt;/option&gt;&lt;option&gt;プロダクト担当者&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
-                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-theme&quot;&gt;テーマ&lt;/label&gt;&lt;select id=&quot;rsv-theme&quot;&gt;&lt;option&gt;Technical Light&lt;/option&gt;&lt;option&gt;Editorial&lt;/option&gt;&lt;option&gt;Compact&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-theme&quot;&gt;テーマ&lt;/label&gt;&lt;select id=&quot;rsv-theme&quot;&gt;&lt;option&gt;Technical Light&lt;/option&gt;&lt;option&gt;Editorial&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
+                  &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-density&quot;&gt;表示密度&lt;/label&gt;&lt;select id=&quot;rsv-density&quot;&gt;&lt;option&gt;Comfortable&lt;/option&gt;&lt;option&gt;Compact&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;
                 &lt;/div&gt;
                 &lt;div class=&quot;rsv-field&quot;&gt;&lt;label for=&quot;rsv-extra&quot;&gt;追加指示（任意）&lt;/label&gt;&lt;textarea id=&quot;rsv-extra&quot; placeholder=&quot;特に重視する観点や、含めてほしい図など&quot;&gt;&lt;/textarea&gt;&lt;/div&gt;
                 &lt;div class=&quot;rsv-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;rsv-primary&quot; data-nav=&quot;job&quot;&gt;&lt;i data-lucide=&quot;sparkles&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;生成を開始&lt;/button&gt;${hotspot(3)}&lt;button type=&quot;button&quot; class=&quot;rsv-secondary&quot; data-nav=&quot;repository-detail&quot;&gt;戻る&lt;/button&gt;&lt;/div&gt;
@@ -1448,7 +1449,7 @@ html&gt;body{padding:0}&lt;/style&gt;
           route: &#x27;/viewers/01j-viewer&#x27;,
           guide: &#x27;Viewer・Q&amp;A画面での操作&#x27;,
           notes: [
-            &#x27;左側で生成済み仕様書を閲覧し、目次やソース参照から目的の箇所へ移動します。&#x27;,
+            &#x27;この本文は生成結果の一例です。実際のセクションと表示部品は説明内容に応じて変わります。&#x27;,
             &#x27;右側のAsk Codexで、Viewer内容や生成元Commitについて追加質問します。&#x27;,
             &#x27;ソース参照を開くと、根拠になったファイルと行範囲を確認できます。ヘッダーでは再生成・テーマ変更等を行います。&#x27;
           ],

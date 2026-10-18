@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.3
-- 更新日: 2026-10-08
+- 文書バージョン: v0.4
+- 更新日: 2026-10-18
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -111,6 +111,18 @@ Viewer
 
 この方式により、テーマ変更をCodexの再実行なしで行え、ソース参照もファイルパス・開始行・終了行の構造化データとして扱える。
 
+Viewer本文は、全ての文書を同じページ構成へ当てはめる方式にはしない。Codexは説明内容に応じてセクションと定義済みblockを選び、アプリのrendererがblockの表示幅、組み合わせ、レスポンシブ配置を決める。
+
+一貫性はページ全体の固定ではなく、次の共通規則で保つ。
+
+- blockごとの見た目と操作
+- 見出し、余白、表、code、diagramの表示規則
+- Themeによる配色と書体
+- Densityによる余白と文字量
+- Viewer Header、目次、source参照などの共通shell
+
+Codexは任意のHTML、CSS、JavaScript、座標、class名を出力しない。blockの種類と厳密な契約は[Phase 2 詳細設計書](./phase-2-detailed-design.md)で定義する。
+
 ## 6. 主要ドメイン
 
 | ドメイン | 責務 |
@@ -142,6 +154,7 @@ Viewer
 - [バックエンド用語解説集](./backend-glossary.md)
 - [SQLAlchemy利用ガイド](./sqlalchemy-reference.md)
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
+- [Phase 2 詳細設計書](./phase-2-detailed-design.md)
 - [Phase 0・1 手動テストガイド](./phase-0-1-manual-test-guide.md)
 - [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
@@ -150,8 +163,9 @@ Phaseごとの実装開始前に詳細設計書を追加し、スコープ、状
 ## 9. 要求確定前の論点
 
 1. ローカル単一ユーザー向けを最終形とするか、将来SaaS化するか。
-2. Viewerの正本を構造化JSONとし、HTMLを導出データとする方針で良いか。
-3. UIライブラリはMUIを使うか、shadcn/ui + Tailwind CSSを使うか。本仕様では「コンポーネント層で隔離する」ところまでとする。
+2. UIライブラリはMUIを使うか、shadcn/ui + Tailwind CSSを使うか。本仕様では「コンポーネント層で隔離する」ところまでとする。
+
+Viewerの正本を構造化JSON、HTMLを導出データとする方針はPhase 2で確定した。
 
 Repositoryの初期上限は[Phase 1 詳細設計書](./phase-1-detailed-design.md)で定義し、実装検証後に調整する。
 
