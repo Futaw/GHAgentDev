@@ -61,5 +61,7 @@ for raw_line in sys.stdin:
         )
     elif method == "test/crash":
         sys.exit(7)
+    elif method == "test/hang":
+        continue
     elif request_id is not None:
         send({"id": request_id, "result": {}})

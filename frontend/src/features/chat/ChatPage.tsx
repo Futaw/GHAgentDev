@@ -1,115 +1,74 @@
-import { useMutation } from '@tanstack/react-query'
-import { FormEvent, useEffect, useReducer, useRef, useState } from 'react'
-import { api } from '../../lib/api'
-import type { ChatMessage, ChatSession, TurnAccepted } from '../../lib/types'
-import { chatReducer, initialChatState } from './chatReducer'
+import { FormEvent, useEffect, useRef, useState } from 'react'
+import { type ProgressStage, useChatSession } from './chatSessionContext'
 
-const newOptimisticMessage = (role: 'user' | 'assistant', content: string): ChatMessage => ({
-  id: crypto.randomUUID(),
-  role,
-  content,
-  status: role === 'assistant' ? 'streaming' : 'completed',
-  created_at: new Date().toISOString(),
-})
+const progressLabels: Record<ProgressStage, string> = {
+  submitting: '質問を送信しています',
+  accepted: '質問を受け付けました',
+  running: 'Codexが処理しています',
+  answering: '回答を作成しています',
+  reconnecting: '進捗表示へ再接続しています',
+}
+
+function useElapsedSeconds(startedAt: number | null) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (startedAt === null) {
+      setElapsed(0)
+      return
+    }
+    const update = () => setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1_000)))
+    update()
+    const timer = window.setInterval(update, 1_000)
+    return () => window.clearInterval(timer)
+  }, [startedAt])
+  return elapsed
+}
+
+function formatElapsed(seconds: number) {
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0')
+  return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`
+}
 
 export function ChatPage() {
-  const [sessionId, setSessionId] = useState<string | null>(null)
   const [input, setInput] = useState('')
-  const [lastInput, setLastInput] = useState('')
-  const [turn, setTurn] = useState<TurnAccepted | null>(null)
-  const [streamState, setStreamState] = useState<'connected' | 'reconnecting'>('connected')
-  const [state, dispatch] = useReducer(chatReducer, initialChatState)
+  const {
+    sessionStatus,
+    sessionError,
+    state,
+    progressStage,
+    progressStartedAt,
+    requestTraceId,
+    busy,
+    canCancel,
+    ensureSession,
+    retrySession,
+    submit,
+    cancel,
+    retryLastMessage,
+  } = useChatSession()
+  const elapsed = useElapsedSeconds(progressStartedAt)
   const endRef = useRef<HTMLDivElement>(null)
   const isComposingRef = useRef(false)
-  const sessionRequestedRef = useRef(false)
-  const createSession = useMutation({
-    mutationFn: () => api<ChatSession>('/api/chat/sessions', { method: 'POST' }),
-    onSuccess: (session) => setSessionId(session.id),
-    onError: () => {
-      sessionRequestedRef.current = false
-    },
-  })
-  const send = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) =>
-      api<TurnAccepted>(`/api/chat/sessions/${id}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      }),
-    onSuccess: setTurn,
-    onError: () => dispatch({ type: 'failed', message: 'メッセージを送信できませんでした。' }),
-  })
 
   useEffect(() => {
-    if (!sessionId && !sessionRequestedRef.current) {
-      sessionRequestedRef.current = true
-      createSession.mutate()
-    }
-  }, [createSession, sessionId])
-
-  useEffect(() => {
-    if (!turn) return
-    const stream = new EventSource(turn.events_url)
-    const onStarted = () => dispatch({ type: 'started' })
-    const onDelta = (raw: Event) => {
-      const data = JSON.parse((raw as MessageEvent).data) as { delta: string }
-      dispatch({ type: 'delta', delta: data.delta })
-    }
-    const onCompleted = () => {
-      dispatch({ type: 'completed' })
-      setTurn(null)
-      stream.close()
-    }
-    const onFailed = (raw: Event) => {
-      const data = JSON.parse((raw as MessageEvent).data) as { message: string }
-      dispatch({ type: 'failed', message: data.message })
-      setTurn(null)
-      stream.close()
-    }
-    const onCancelled = () => {
-      dispatch({ type: 'cancelled' })
-      setTurn(null)
-      stream.close()
-    }
-    stream.addEventListener('turn.started', onStarted)
-    stream.addEventListener('message.delta', onDelta)
-    stream.addEventListener('turn.completed', onCompleted)
-    stream.addEventListener('turn.failed', onFailed)
-    stream.addEventListener('turn.cancelled', onCancelled)
-    stream.onopen = () => setStreamState('connected')
-    stream.onerror = () => setStreamState('reconnecting')
-    return () => stream.close()
-  }, [turn])
+    void ensureSession()
+  }, [ensureSession])
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [state.messages])
+  }, [state.messages, progressStage])
 
-  const submit = (retryText?: string) => {
-    const content = (retryText ?? input).trim()
-    if (!content || !sessionId || turn || send.isPending) return false
+  const send = () => {
+    if (!submit(input)) return false
     isComposingRef.current = false
-    setLastInput(content)
     setInput('')
-    dispatch({
-      type: 'submitted',
-      user: newOptimisticMessage('user', content),
-      assistant: newOptimisticMessage('assistant', ''),
-    })
-    send.mutate({ id: sessionId, content })
     return true
   }
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
-    submit()
+    send()
   }
-
-  const cancel = async () => {
-    if (!turn) return
-    await api(`/api/turns/${turn.turn_id}/cancel`, { method: 'POST' })
-  }
-
-  const busy = state.status === 'sending' || state.status === 'streaming'
 
   return (
     <main className="chat-shell">
@@ -120,24 +79,37 @@ export function ChatPage() {
           <p>この画面では、設定されたテスト用Workspaceについて読み取り専用で質問できます。</p>
         </div>
         <div className="messages" aria-live="polite" aria-busy={busy}>
-          {createSession.isPending && <p className="muted">セッションを準備しています…</p>}
-          {createSession.isError && (
-            <div className="error-card"><p>セッションを開始できませんでした。</p><button onClick={() => {
-              sessionRequestedRef.current = true
-              createSession.mutate()
-            }}>再試行</button></div>
+          {sessionStatus === 'preparing' && <p className="muted">セッションを準備しています…</p>}
+          {sessionStatus === 'failed' && sessionError && (
+            <div className="error-card" role="alert">
+              <p>{sessionError.detail}</p>
+              {sessionError.trace_id && <small>トレースID: {sessionError.trace_id}</small>}
+              <button type="button" onClick={() => void retrySession()}>再試行</button>
+            </div>
           )}
           {state.messages.map((message) => (
             <article key={message.id} className={`message ${message.role}`}>
               <span>{message.role === 'user' ? 'あなた' : 'Codex'}</span>
-              <p>{message.content || (message.status === 'streaming' ? '考えています…' : '')}</p>
+              <p>{message.content}</p>
             </article>
           ))}
-          {streamState === 'reconnecting' && busy && <p className="stream-note">ストリームへ再接続しています…</p>}
+          {progressStage && progressStartedAt !== null && (
+            <section className="progress-card" aria-label="Codexの処理状況">
+              <div>
+                <p className="progress-label" role="status" aria-live="polite">
+                  <span aria-hidden="true" />{progressLabels[progressStage]}
+                </p>
+                <p className="elapsed" aria-live="off">経過時間 {formatElapsed(elapsed)}</p>
+                {elapsed >= 30 && <p className="delay-note">通常より時間がかかっています。処理は継続中です。</p>}
+              </div>
+              {canCancel && <button type="button" className="stop" onClick={() => void cancel()}>中止</button>}
+            </section>
+          )}
           {state.error && (
             <div className="error-card" role="alert">
               <p>{state.error}</p>
-              <button onClick={() => submit(lastInput)}>同じ内容を再送信</button>
+              {requestTraceId && <small>トレースID: {requestTraceId}</small>}
+              <button type="button" onClick={() => retryLastMessage()}>同じ内容を再送信</button>
             </div>
           )}
           <div ref={endRef} />
@@ -155,25 +127,20 @@ export function ChatPage() {
               isComposingRef.current = false
             }}
             onKeyDown={(event) => {
-              // Composition境界でisComposingがfalseになるブラウザ向けの互換判定。
               const isImeBoundary = event.nativeEvent.keyCode === 229
               const isImeInput = isComposingRef.current
                 || event.nativeEvent.isComposing
                 || isImeBoundary
               if (event.key !== 'Enter' || event.shiftKey || isImeInput) return
-              if (submit()) event.preventDefault()
+              if (send()) event.preventDefault()
             }}
             placeholder="このWorkspaceについて質問する"
-            disabled={!sessionId || busy}
+            disabled={sessionStatus !== 'ready' || busy}
             rows={3}
           />
           <div className="composer-actions">
             <small>Enterで送信 · Shift + Enterで改行</small>
-            {busy && turn ? (
-              <button type="button" className="stop" onClick={() => void cancel()}>中止</button>
-            ) : (
-              <button type="submit" className="primary" disabled={!input.trim() || !sessionId}>送信</button>
-            )}
+            <button type="submit" className="primary" disabled={!input.trim() || sessionStatus !== 'ready' || busy}>送信</button>
           </div>
         </form>
       </section>

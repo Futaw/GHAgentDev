@@ -14,7 +14,12 @@ from backend.app.api.repository_routes import router as repository_router
 from backend.app.api.routes import router
 from backend.app.auth import AuthService
 from backend.app.chat import ChatConflictError, ChatNotFoundError, ChatService
-from backend.app.codex import CodexAppServer, CodexConnectionError, CodexRpcError
+from backend.app.codex import (
+    CodexAppServer,
+    CodexConnectionError,
+    CodexRpcError,
+    CodexTimeoutError,
+)
 from backend.app.db import Database
 from backend.app.repositories import (
     DatabaseUnavailableError,
@@ -31,6 +36,8 @@ from backend.app.repositories.store import RepositoryStore
 from backend.app.repositories.url import InvalidGitHubUrlError
 from backend.app.repositories.workspace import WorkspaceResolver
 from backend.app.settings import Settings
+
+logger = logging.getLogger(__name__)
 
 
 def create_app(config: Settings | None = None, codex: CodexAppServer | None = None) -> FastAPI:
@@ -149,6 +156,22 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
 
     @app.exception_handler(CodexConnectionError)
     async def unavailable_handler(request: Request, exc: CodexConnectionError) -> JSONResponse:
+        trace_id = _trace_id(request)
+        reason = str(exc).lower()
+        classification = (
+            "process_exited"
+            if any(word in reason for word in ("exited", "closed", "stopped"))
+            else "unavailable"
+        )
+        logger.warning(
+            "Codex chat operation failed",
+            extra={
+                "operation": _chat_operation(request),
+                "problem_code": "CODEX_UNAVAILABLE",
+                "trace_id": trace_id,
+                "classification": classification,
+            },
+        )
         return _problem(
             request,
             503,
@@ -158,10 +181,37 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
             True,
         )
 
+    @app.exception_handler(CodexTimeoutError)
+    async def timeout_handler(request: Request, exc: CodexTimeoutError) -> JSONResponse:
+        trace_id = _trace_id(request)
+        logger.warning(
+            "Codex chat operation timed out",
+            extra={
+                "operation": _chat_operation(request),
+                "problem_code": "CODEX_TIMEOUT",
+                "trace_id": trace_id,
+                "classification": "timeout",
+                "rpc_method": exc.method,
+            },
+        )
+        return _problem(
+            request,
+            504,
+            "Codex App Server timed out",
+            "Codex App Serverからの応答がタイムアウトしました。しばらく待って再試行してください。",
+            "CODEX_TIMEOUT",
+            True,
+        )
+
     @app.exception_handler(CodexRpcError)
     async def rpc_error_handler(request: Request, exc: CodexRpcError) -> JSONResponse:
         code = "AUTH_REQUIRED" if exc.code == -32000 else "CODEX_TURN_FAILED"
-        return _problem(request, 502, "Codex request failed", str(exc), code, True)
+        detail = (
+            "Codexの認証が必要です。ログイン状態を確認してください。"
+            if code == "AUTH_REQUIRED"
+            else "Codexで処理を開始できませんでした。しばらく待って再試行してください。"
+        )
+        return _problem(request, 502, "Codex request failed", detail, code, True)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(
@@ -189,11 +239,7 @@ def _problem(
     retryable: bool,
     extra: dict[str, object] | None = None,
 ) -> JSONResponse:
-    trace_id = getattr(
-        request.state,
-        "trace_id",
-        request.headers.get("X-Trace-ID", str(uuid4())),
-    )
+    trace_id = _trace_id(request)
     return JSONResponse(
         status_code=status_code,
         media_type="application/problem+json",
@@ -208,6 +254,25 @@ def _problem(
             **(extra or {}),
         },
     )
+
+
+def _trace_id(request: Request) -> str:
+    trace_id = getattr(request.state, "trace_id", None)
+    if trace_id is None:
+        trace_id = request.headers.get("X-Trace-ID") or str(uuid4())
+        request.state.trace_id = trace_id
+    return trace_id
+
+
+def _chat_operation(request: Request) -> str:
+    path = request.url.path
+    if path == "/api/chat/sessions" and request.method == "POST":
+        return "chat.session.create"
+    if path.endswith("/messages") and request.method == "POST":
+        return "chat.message.send"
+    if path.endswith("/cancel") and request.method == "POST":
+        return "chat.turn.cancel"
+    return "chat.request"
 
 
 app = create_app()

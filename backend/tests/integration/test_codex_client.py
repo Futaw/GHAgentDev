@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.app.codex import CodexAppServer, CodexConnectionError
+from backend.app.codex import CodexAppServer, CodexConnectionError, CodexTimeoutError
 from backend.app.settings import Settings
 
 FAKE_SERVER = Path(__file__).parents[1] / "fixtures" / "fake_app_server.py"
@@ -74,5 +74,20 @@ async def test_restarts_and_reinitializes_after_process_exit() -> None:
         assert client._process is not None
         assert client._process.pid != first_pid
         assert (await client.request("account/read"))["account"]["type"] == "chatgpt"
+    finally:
+        await client.stop()
+
+
+@pytest.mark.asyncio
+async def test_request_timeout_is_distinct_from_connection_failure() -> None:
+    settings = make_settings()
+    client = CodexAppServer(settings)
+    await client.start()
+    try:
+        settings.codex_request_timeout_seconds = 0.01
+        with pytest.raises(CodexTimeoutError) as captured:
+            await client.request("test/hang", {})
+        assert captured.value.method == "test/hang"
+        assert client.connected is True
     finally:
         await client.stop()

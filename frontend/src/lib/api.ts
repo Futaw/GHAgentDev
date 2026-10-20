@@ -14,13 +14,25 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...init?.headers,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(path, {
+      ...init,
+      headers: {
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...init?.headers,
+      },
+    })
+  } catch {
+    throw new ApiError({
+      title: 'Network error',
+      detail: 'サーバーへ接続できません。接続状態を確認して再試行してください。',
+      status: 0,
+      code: 'NETWORK_ERROR',
+      retryable: true,
+      trace_id: '',
+    })
+  }
   if (!response.ok) {
     let problem: ProblemDetails
     try {

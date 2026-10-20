@@ -2,12 +2,13 @@ import type { ChatMessage } from '../../lib/types'
 
 export type ChatState = {
   messages: ChatMessage[]
-  status: 'idle' | 'sending' | 'streaming' | 'failed' | 'cancelled'
+  status: 'idle' | 'submitting' | 'queued' | 'running' | 'failed' | 'cancelled'
   error: string | null
 }
 export type ChatAction =
   | { type: 'loaded'; messages: ChatMessage[] }
   | { type: 'submitted'; user: ChatMessage; assistant: ChatMessage }
+  | { type: 'accepted' }
   | { type: 'started' }
   | { type: 'delta'; delta: string }
   | { type: 'completed' }
@@ -21,9 +22,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     case 'loaded':
       return { ...state, messages: action.messages }
     case 'submitted':
-      return { messages: [...state.messages, action.user, action.assistant], status: 'sending', error: null }
+      return { messages: [...state.messages, action.user, action.assistant], status: 'submitting', error: null }
+    case 'accepted':
+      return { ...state, status: 'queued' }
     case 'started':
-      return { ...state, status: 'streaming' }
+      return { ...state, status: 'running' }
     case 'delta': {
       const messages = [...state.messages]
       const last = messages.at(-1)

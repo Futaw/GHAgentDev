@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from backend.app.chat import ChatService
-from backend.app.codex import CodexAppServer
+from backend.app.codex import CodexAppServer, CodexConnectionError
 from backend.tests.integration.test_codex_client import make_settings
 
 
@@ -60,3 +60,21 @@ async def test_chat_recreates_ephemeral_thread_after_disconnect() -> None:
         assert turn.status == "completed"
     finally:
         await client.stop()
+
+
+@pytest.mark.asyncio
+async def test_failed_session_creation_is_not_published() -> None:
+    class FailingCodex:
+        def add_notification_handler(self, _handler) -> None:  # type: ignore[no-untyped-def]
+            pass
+
+        async def ensure_connected(self) -> None:
+            raise CodexConnectionError("unavailable")
+
+    service = ChatService(FailingCodex(), make_settings())  # type: ignore[arg-type]
+
+    with pytest.raises(CodexConnectionError):
+        await service.create_session()
+
+    assert service._sessions == {}
+    assert service._thread_to_session == {}

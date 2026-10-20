@@ -31,6 +31,12 @@ class CodexConnectionError(RuntimeError):
     pass
 
 
+class CodexTimeoutError(RuntimeError):
+    def __init__(self, method: str) -> None:
+        super().__init__("Codex request timed out")
+        self.method = method
+
+
 class CodexRpcError(RuntimeError):
     def __init__(self, code: int | None, message: str) -> None:
         super().__init__(message)
@@ -117,7 +123,7 @@ class CodexAppServer:
                 timeout=self._config.codex_request_timeout_seconds,
             )
         except TimeoutError as exc:
-            raise CodexConnectionError(f"Codex request timed out: {method}") from exc
+            raise CodexTimeoutError(method) from exc
         finally:
             self._pending.pop(request_id, None)
         if error := response.get("error"):
