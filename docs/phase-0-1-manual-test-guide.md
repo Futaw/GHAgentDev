@@ -1,6 +1,6 @@
 # Phase 0・1 手動テストガイド
 
-- 更新日: 2026-10-19
+- 更新日: 2026-10-20
 - 対象: RepoSpec Viewer Phase 0「Codex接続と最小チャット」、Phase 1「Repository管理」
 - 想定環境: macOS、PostgreSQL 17、Python 3.12以上、Node.js 24、Codex CLI
 
@@ -204,7 +204,7 @@ FastAPIの終了時には次が実行される。
 | `ログインをキャンセル` | `POST /api/auth/login/{login_id}/cancel` | `account/login/cancel` | 進行中のログインを中止する。 |
 | APIでログアウト | `POST /api/auth/logout` | `account/logout` | Codex CLIの認証状態を未認証へ変更する。 |
 | Chat画面を初めて開く | `POST /api/chat/sessions` | `thread/start` | 読み取り専用の一時Threadを作る。 |
-| Chat画面へ戻る、または再読み込みする | `GET /api/chat/sessions/{session_id}` | なし | Message、実行中Turn、進捗、SSE再開位置を取得する。 |
+| RepositoriesからChat画面へ戻る | なし | なし | Providerが保持するMessage、実行中Turn、進捗を表示する。 |
 | 質問を送信 | `POST /api/chat/sessions/{session_id}/messages` | `turn/start` | Turnを開始し、HTTPは`202 Accepted`を返す。 |
 | 回答中 | `GET /api/turns/{turn_id}/events` | App Serverから`item/agentMessage/delta` | SSEで回答を少しずつ画面へ反映する。 |
 | `中止` | `POST /api/turns/{turn_id}/cancel` | `turn/interrupt` | 実行中のTurnを中止する。 |
@@ -213,7 +213,7 @@ FastAPIの終了時には次が実行される。
 
 | HTTP | 返す内容 |
 |---|---|
-| `GET /api/chat/sessions/{session_id}` | Sessionの状態、Message、実行中Turn、進捗、SSE再開位置を返す。 |
+| `GET /api/chat/sessions/{session_id}` | Sessionが`idle`か`running`かを返す。 |
 | `GET /api/chat/sessions/{session_id}/messages` | そのSessionのUser・Assistant Messageを返す。 |
 | `GET /api/turns/{turn_id}` | Turnの`queued / running / completed / failed / cancelled`を返す。 |
 
@@ -357,7 +357,7 @@ IME変換確定のEnterで質問が送信された場合は不合格とする。
 4. 入力欄が有効になるまで待つ。
 5. `このWorkspaceのトップレベルにあるファイル名を3つ教えてください。ファイルは変更しないでください。`など、`TEST_CHAT_WORKSPACE`に関する読み取り専用の質問を送る。
 6. 回答文が届く前から、質問受付または処理開始を示す進捗と経過時間が表示されることを確認する。
-7. Workspaceの調査と回答作成を区別できる進捗が表示され、回答文が少しずつ増えることを確認する。
+7. Codexの処理中と回答作成中を区別できる進捗が表示され、回答文が少しずつ増えることを確認する。
 8. 完了後に入力欄と送信ボタンが再び使えることを確認する。
 9. `TEST_CHAT_WORKSPACE`のファイルが変更されていないことを`git status --short`などで確認する。
 
@@ -371,13 +371,6 @@ Repository未登録を理由に入力欄が無効になる場合や、進捗文�
 4. 送信済みのUser Messageが残り、同じSessionの進捗または回答が表示されることを確認する。
 5. ブラウザのNetwork panelで、画面へ戻ったことを理由とする新しい`POST /api/chat/sessions`やMessageの再送信がないことを確認する。
 6. Turnが完了するまで待ち、User MessageとAssistant Messageが重複していないことを確認する。
-
-次に、回答中のブラウザ再読み込みを確認する。
-
-1. 新しい質問を送信し、回答中にブラウザを再読み込みする。
-2. `GET /api/chat/sessions/{session_id}`でSession snapshotを取得することをNetwork panelで確認する。
-3. 同じMessageと進捗を表示し、実行中の場合はSSEへ再接続することを確認する。
-4. 回答完了後、Assistant Messageの文章が重複していないことを確認する。
 
 ### 4.6 Session作成失敗と再試行
 

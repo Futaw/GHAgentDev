@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.5
-- 更新日: 2026-10-19
+- 文書バージョン: v0.6
+- 更新日: 2026-10-20
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -194,39 +194,13 @@ Message送信は長時間HTTP requestにせず、Turn作成後に`202 Accepted`�
 }
 ```
 
-`POST /api/chat/sessions`と`GET /api/chat/sessions/{session_id}`は、Message、実行中Turn、進捗、SSEの再開位置を含む同じSession snapshotを返す。これにより、Frontendは画面移動やブラウザ再読み込み後も同じSessionへ復帰できる。
-
-```json
-{
-  "id": "session-uuid",
-  "status": "running",
-  "created_at": "2026-10-19T01:00:00Z",
-  "messages": [],
-  "active_turn": {
-    "turn_id": "turn-uuid",
-    "status": "running",
-    "events_url": "/api/turns/turn-uuid/events",
-    "started_at": "2026-10-19T01:00:04Z",
-    "last_event_id": 4,
-    "progress": {
-      "stage": "investigating",
-      "label": "Workspaceを調査しています"
-    }
-  }
-}
-```
-
 Session作成では、Codex App Serverの`thread/start`が成功してからSessionを公開する。失敗したSessionをSession辞書とThread対応表へ残さない。
 
-Turn SSEは`Last-Event-ID`に加えて`after` queryを受け付ける。両方が指定された場合は大きい値を採用する。新しい`EventSource`を作る復帰処理は`after`を使用し、同じ接続の自動再接続はブラウザが送る`Last-Event-ID`を使用する。
-
-`message.delta`は差分だけでなく、そのEvent時点の累積回答を含む。Frontendは累積回答でMessageを置き換え、再送されたEventによる回答の重複を防ぐ。
-
-Codex App ServerのItemは、安全な表示文言へ変換してから進捗Eventへ含める。未知のItem type、コマンド全文、ローカル絶対パス、reasoningはFrontendへ送らない。
+回答中にFrontendの子Routeを移動しても、`ChatSessionProvider`が同じSSE接続を維持する。ブラウザ再読み込み後のSession復帰、Session snapshotの拡張、新しいSSE接続でのevent cursor指定はPhase 4で扱う。
 
 Session作成がCodex接続エラーで失敗した場合は、`503 / CODEX_UNAVAILABLE / retryable: true`を返す。request timeoutは接続断と区別し、`504 / CODEX_TIMEOUT / retryable: true`を返す。Backendはoperation、problem code、trace ID、安全な失敗分類をwarning levelで記録する。認証情報、Message本文、Workspace絶対パスは記録しない。
 
-Phase 0 Chatの厳密な状態と復帰手順は[Phase 0 Chat進捗・セッション復帰 詳細設計書](./phase-0-chat-recovery-detailed-design.md)に定める。
+Phase 0 Chatの厳密な状態と画面移動時の扱いは[Phase 0 Chat進捗・画面移動対応 詳細設計書](./phase-0-chat-recovery-detailed-design.md)に定める。
 
 ## 6. Repository管理
 
@@ -626,8 +600,6 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 - JSON-RPC request/response/notification routing
 - request timeoutとApp Server EOF
 - Codex eventからdomain eventへの変換
-- Session snapshotと実行中Turnの状態変換
-- `message.delta`の累積回答と再送時の冪等性
 - Session作成失敗時のメモリ上の後始末
 - Codex接続エラーのログ項目と機密情報の除外
 - GitHub URL正規化
@@ -641,7 +613,7 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 
 - fake app-server processを使ったinitializeからTurn完了までのテスト
 - login success/failure/cancel notification
-- SSEの順序、切断、`after`または`Last-Event-ID`による再接続
+- SSEの順序、切断、`Last-Event-ID`による自動再接続
 - Session作成の503応答と、復旧後の明示的な再試行
 - ローカルのテスト用Git Repositoryを用いたClone/Sync service
 - Repository削除成功、処理中拒否、Workspace削除失敗時のDB行保持
@@ -716,7 +688,7 @@ backend/
 8. Codexはテスト用Workspaceをread-onlyで調査し、変更を行わない。
 9. トークンや機密情報がAPI応答とログに出力されない。
 10. Repositoryが0件でもPhase 0 Chatを利用できる。
-11. 回答中の画面移動と再読み込み後に同じSessionとTurnへ復帰できる。
+11. 回答中に画面を移動しても、Chatへ戻ったときに同じSessionとTurnを表示できる。
 12. Session作成失敗時は自動試行を繰り返さず、明示的に再試行できる。
 13. 回答開始前から処理段階と経過時間を確認できる。
 
