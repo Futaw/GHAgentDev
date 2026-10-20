@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.5
-- 更新日: 2026-10-18
+- 文書バージョン: v0.7
+- 更新日: 2026-10-20
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -50,8 +50,11 @@ flowchart LR
 - ChatGPT認証状態の取得とログイン開始
 - 最小のThread作成とTurn実行
 - AgentメッセージのSSE表示
-- 送信中、完了、失敗、キャンセルの表示
+- 送信受付、処理中、回答中、再接続、完了、失敗、キャンセルの表示
+- 回答中に画面を移動した後の一時Session復帰
 - Codexの作業対象は設定されたテスト用Workspace、権限はread-only
+
+Phase 0 Chatは登録済みRepositoryではなく、環境設定の`TEST_CHAT_WORKSPACE`を対象とする。Repositoryが0件でもSessionを作成し、質問を送信できる。
 
 完了条件:
 
@@ -60,6 +63,8 @@ flowchart LR
 3. 途中で切断・失敗しても、UIが固まらず再試行できる。
 4. App Serverを再起動した後も、バックエンドが再初期化できる。
 5. 日本語IMEの変換確定に使うEnterでは送信せず、変換完了後のEnterまたは送信ボタンで送信できる。
+6. 回答中に別画面へ移動してもTurnを継続し、Chatへ戻ったときに同じSessionへ復帰できる。
+7. Session作成が失敗した場合は自動試行を繰り返さず、失敗理由と再試行操作を表示できる。
 
 ### Phase 1: Repository管理
 
@@ -154,6 +159,7 @@ Codexは任意のHTML、CSS、JavaScript、座標、class名を出力しない�
 - [バックエンド仕様](./backend-spec.md)
 - [バックエンド用語解説集](./backend-glossary.md)
 - [SQLAlchemy利用ガイド](./sqlalchemy-reference.md)
+- [Phase 0 Chat進捗・画面移動対応 詳細設計書](./phase-0-chat-recovery-detailed-design.md)
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
 - [Phase 2 詳細設計書](./phase-2-detailed-design.md)
 - [Phase 0・1 手動テストガイド](./phase-0-1-manual-test-guide.md)

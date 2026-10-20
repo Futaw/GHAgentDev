@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.4
-- 更新日: 2026-10-18
+- 文書バージョン: v0.6
+- 更新日: 2026-10-20
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -108,6 +108,8 @@ Repositoryを対象とするThread/Turnは以下のポリシーを既定とす�
 
 実際のパスは設定値から解決する。ユーザー入力やDB上の値をそのまま`cwd`や`readableRoots`に使用しない。
 
+Phase 0 ChatはRepository管理とは独立し、環境設定の`TEST_CHAT_WORKSPACE`を`cwd`に使用する。登録済みRepositoryの有無をSession作成条件にしない。Repositoryを対象とするConversationはPhase 3で別に実装する。
+
 ### 3.5 承認要求
 
 MVPのCodexは読み取り専用である。コマンド実行、ファイル変更、追加権限のserver requestが届いた場合、Codex gatewayは自動承認せず拒否し、セキュリティイベントを記録する。
@@ -191,6 +193,14 @@ Message送信は長時間HTTP requestにせず、Turn作成後に`202 Accepted`�
   "events_url": "/api/turns/uuid/events"
 }
 ```
+
+Session作成では、Codex App Serverの`thread/start`が成功してからSessionを公開する。失敗したSessionをSession辞書とThread対応表へ残さない。
+
+回答中にFrontendの子Routeを移動しても、`ChatSessionProvider`が同じSSE接続を維持する。ブラウザ再読み込み後のSession復帰、Session snapshotの拡張、新しいSSE接続でのevent cursor指定はPhase 4で扱う。
+
+Session作成がCodex接続エラーで失敗した場合は、`503 / CODEX_UNAVAILABLE / retryable: true`を返す。request timeoutは接続断と区別し、`504 / CODEX_TIMEOUT / retryable: true`を返す。Backendはoperation、problem code、trace ID、安全な失敗分類をwarning levelで記録する。認証情報、Message本文、Workspace絶対パスは記録しない。
+
+Phase 0 Chatの厳密な状態と画面移動時の扱いは[Phase 0 Chat進捗・画面移動対応 詳細設計書](./phase-0-chat-recovery-detailed-design.md)に定める。
 
 ## 6. Repository管理
 
@@ -590,6 +600,8 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 - JSON-RPC request/response/notification routing
 - request timeoutとApp Server EOF
 - Codex eventからdomain eventへの変換
+- Session作成失敗時のメモリ上の後始末
+- Codex接続エラーのログ項目と機密情報の除外
 - GitHub URL正規化
 - Workspace pathとsymlink検証
 - Repository Workspace削除対象の検証
@@ -601,7 +613,8 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 
 - fake app-server processを使ったinitializeからTurn完了までのテスト
 - login success/failure/cancel notification
-- SSEの順序、切断、再接続
+- SSEの順序、切断、`Last-Event-ID`による自動再接続
+- Session作成の503応答と、復旧後の明示的な再試行
 - ローカルのテスト用Git Repositoryを用いたClone/Sync service
 - Repository削除成功、処理中拒否、Workspace削除失敗時のDB行保持
 - PostgreSQLを用いたJob/Viewer/Conversationの永続化
@@ -674,6 +687,10 @@ backend/
 7. App Server停止時に実行中処理を失敗化し、再初期化できる。
 8. Codexはテスト用Workspaceをread-onlyで調査し、変更を行わない。
 9. トークンや機密情報がAPI応答とログに出力されない。
+10. Repositoryが0件でもPhase 0 Chatを利用できる。
+11. 回答中に画面を移動しても、Chatへ戻ったときに同じSessionとTurnを表示できる。
+12. Session作成失敗時は自動試行を繰り返さず、明示的に再試行できる。
+13. 回答開始前から処理段階と経過時間を確認できる。
 
 ## 20. 外部仕様
 

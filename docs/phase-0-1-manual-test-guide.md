@@ -1,6 +1,6 @@
 # Phase 0・1 手動テストガイド
 
-- 更新日: 2026-10-18
+- 更新日: 2026-10-20
 - 対象: RepoSpec Viewer Phase 0「Codex接続と最小チャット」、Phase 1「Repository管理」
 - 想定環境: macOS、PostgreSQL 17、Python 3.12以上、Node.js 24、Codex CLI
 
@@ -203,7 +203,8 @@ FastAPIの終了時には次が実行される。
 | ログイン中 | `GET /api/auth/events` | App Serverから通知 | SSEで成功、失敗、キャンセルを受け取る。画面は2秒ごとに認証状態も再取得する。 |
 | `ログインをキャンセル` | `POST /api/auth/login/{login_id}/cancel` | `account/login/cancel` | 進行中のログインを中止する。 |
 | APIでログアウト | `POST /api/auth/logout` | `account/logout` | Codex CLIの認証状態を未認証へ変更する。 |
-| Chat画面を開く | `POST /api/chat/sessions` | `thread/start` | 読み取り専用の一時Threadを作る。 |
+| Chat画面を初めて開く | `POST /api/chat/sessions` | `thread/start` | 読み取り専用の一時Threadを作る。 |
+| RepositoriesからChat画面へ戻る | なし | なし | Providerが保持するMessage、実行中Turn、進捗を表示する。 |
 | 質問を送信 | `POST /api/chat/sessions/{session_id}/messages` | `turn/start` | Turnを開始し、HTTPは`202 Accepted`を返す。 |
 | 回答中 | `GET /api/turns/{turn_id}/events` | App Serverから`item/agentMessage/delta` | SSEで回答を少しずつ画面へ反映する。 |
 | `中止` | `POST /api/turns/{turn_id}/cancel` | `turn/interrupt` | 実行中のTurnを中止する。 |
@@ -350,14 +351,39 @@ IME変換確定のEnterで質問が送信された場合は不合格とする。
 
 ### 4.4 チャット完了
 
-1. Headerから`Chat`を開く。
-2. 入力欄が有効になるまで待つ。
-3. `このWorkspaceのトップレベルにあるファイル名を3つ教えてください。ファイルは変更しないでください。`など、`TEST_CHAT_WORKSPACE`に関する読み取り専用の質問を送る。
-4. `考えています…`から回答文が少しずつ増えることを確認する。
-5. 完了後に入力欄と送信ボタンが再び使えることを確認する。
-6. `TEST_CHAT_WORKSPACE`のファイルが変更されていないことを`git status --short`などで確認する。
+1. `GET /api/repositories`が`{"items":[]}`となる、Repository未登録のテスト環境を用意する。
+2. Headerから`Chat`を開く。
+3. Chatが`TEST_CHAT_WORKSPACE`を対象としており、登録済みRepositoryを必要としない説明を確認する。
+4. 入力欄が有効になるまで待つ。
+5. `このWorkspaceのトップレベルにあるファイル名を3つ教えてください。ファイルは変更しないでください。`など、`TEST_CHAT_WORKSPACE`に関する読み取り専用の質問を送る。
+6. 回答文が届く前から、質問受付または処理開始を示す進捗と経過時間が表示されることを確認する。
+7. Codexの処理中と回答作成中を区別できる進捗が表示され、回答文が少しずつ増えることを確認する。
+8. 完了後に入力欄と送信ボタンが再び使えることを確認する。
+9. `TEST_CHAT_WORKSPACE`のファイルが変更されていないことを`git status --short`などで確認する。
 
-### 4.5 チャット中止と再送信
+Repository未登録を理由に入力欄が無効になる場合や、進捗文言なしで中止ボタンだけが表示される場合は不合格とする。30秒以上かかる質問では、通常より時間がかかっていることと処理が継続中であることも確認する。
+
+### 4.5 回答中の画面移動と復帰
+
+1. 回答に時間がかかる読み取り専用の質問を送る。
+2. 進捗と中止ボタンが表示された後、Headerから`Repositories`へ移動する。
+3. 数秒待ってからHeaderの`Chat`へ戻る。
+4. 送信済みのUser Messageが残り、同じSessionの進捗または回答が表示されることを確認する。
+5. ブラウザのNetwork panelで、画面へ戻ったことを理由とする新しい`POST /api/chat/sessions`やMessageの再送信がないことを確認する。
+6. Turnが完了するまで待ち、User MessageとAssistant Messageが重複していないことを確認する。
+
+### 4.6 Session作成失敗と再試行
+
+Session作成の503は自動テストで必ず確認する。手動テスト環境で`CODEX_UNAVAILABLE`を再現できる場合は、次も確認する。
+
+1. Session IDを保持していない新しいブラウザタブでChatを開く。
+2. `POST /api/chat/sessions`が`503 / CODEX_UNAVAILABLE`になる状態を用意する。
+3. `セッションを準備しています`のままにならず、App Serverへ接続できない説明と再試行ボタンが表示されることを確認する。
+4. Network panelで`POST /api/chat/sessions`が自動的に繰り返されないことを確認する。
+5. Codex App Serverを復旧させ、再試行ボタンを1回押す。
+6. Session作成要求が1回だけ送られ、入力欄が利用可能になることを確認する。
+
+### 4.7 チャット中止と再送信
 
 1. 回答に時間がかかる質問を送る。
 2. 回答中に`中止`を押す。
@@ -366,7 +392,7 @@ IME変換確定のEnterで質問が送信された場合は不合格とする。
 
 回答失敗時は、画面に`同じ内容を再送信`が表示される。そのボタンから直前の質問を再実行できることを確認する。
 
-### 4.6 Codex App Serverの切断と自動再接続
+### 4.8 Codex App Serverの切断と自動再接続
 
 このテストは、必ず手動テスト用のFastAPIで行う。
 
