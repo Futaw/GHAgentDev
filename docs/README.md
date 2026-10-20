@@ -162,6 +162,7 @@ Codexは任意のHTML、CSS、JavaScript、座標、class名を出力しない�
 - [Phase 0 Chat進捗・画面移動対応 詳細設計書](./phase-0-chat-recovery-detailed-design.md)
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
 - [Phase 2 詳細設計書](./phase-2-detailed-design.md)
+- [Phase 2 詳細設計の引き継ぎ](./phase-2-design-handoff.md)
 - [Phase 0・1 手動テストガイド](./phase-0-1-manual-test-guide.md)
 - [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
