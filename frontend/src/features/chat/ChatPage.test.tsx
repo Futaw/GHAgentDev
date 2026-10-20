@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatPage } from './ChatPage'
+import { ChatSessionProvider } from './ChatSessionProvider'
 
 const session = {
   id: 'session-1',
@@ -31,7 +32,9 @@ function renderChat() {
   })
   return render(
     <QueryClientProvider client={client}>
-      <ChatPage />
+      <ChatSessionProvider>
+        <ChatPage />
+      </ChatSessionProvider>
     </QueryClientProvider>,
   )
 }

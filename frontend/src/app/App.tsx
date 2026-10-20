@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAuth } from '../features/auth/RequireAuth'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ChatPage } from '../features/chat/ChatPage'
+import { ChatSessionProvider } from '../features/chat/ChatSessionProvider'
 import { RepositoryDetailPage } from '../features/repositories/RepositoryDetailPage'
 import { RepositoryListPage } from '../features/repositories/RepositoryListPage'
 import { RepositoryNewPage } from '../features/repositories/RepositoryNewPage'
@@ -12,7 +13,7 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
-        <Route element={<AppLayout />}>
+        <Route element={<ChatSessionProvider><AppLayout /></ChatSessionProvider>}>
           <Route path="/repositories" element={<RepositoryListPage />} />
           <Route path="/repositories/new" element={<RepositoryNewPage />} />
           <Route path="/repositories/:repositoryId" element={<RepositoryDetailPage />} />

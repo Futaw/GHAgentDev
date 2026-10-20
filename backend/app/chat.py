@@ -63,8 +63,10 @@ class ChatService:
 
     async def create_session(self) -> ChatSession:
         session = ChatSession(id=str(uuid4()), codex_thread_id=None)
+        thread_id = await self._request_session_thread()
+        session.codex_thread_id = thread_id
         self._sessions[session.id] = session
-        await self._start_session_thread(session)
+        self._thread_to_session[thread_id] = session.id
         return session
 
     def get_session(self, session_id: str) -> ChatSession:
@@ -228,6 +230,11 @@ class ChatService:
         )
 
     async def _start_session_thread(self, session: ChatSession) -> None:
+        thread_id = await self._request_session_thread()
+        session.codex_thread_id = thread_id
+        self._thread_to_session[thread_id] = session.id
+
+    async def _request_session_thread(self) -> str:
         await self._codex.ensure_connected()
         workspace = str(self._config.test_chat_workspace)
         result = await self._codex.request(
@@ -244,8 +251,7 @@ class ChatService:
                 ),
             },
         )
-        session.codex_thread_id = result["thread"]["id"]
-        self._thread_to_session[session.codex_thread_id] = session.id
+        return result["thread"]["id"]
 
     @staticmethod
     def serialize_session(session: ChatSession) -> dict[str, Any]:

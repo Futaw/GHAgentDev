@@ -88,6 +88,13 @@ h1 { margin: 12px 0; font-family: Georgia, 'Times New Roman', serif; font-size: 
 .stream-note { color: #6d7467; font-size: 13px; }
 .error-card { padding: 14px 16px; border: 1px solid #e5c4bd; border-radius: 12px; background: #fff5f2; color: #7e3c34; }
 .error-card p { margin-top: 0; }
+.error-card small { display: block; margin: -4px 0 12px; color: #765b57; }
+.progress-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 8px 0 22px; padding: 16px 18px; border: 1px solid #d9ddd3; border-radius: 12px; background: #f4f7f1; }
+.progress-card p { margin: 0; }
+.progress-label { display: flex; align-items: center; gap: 9px; color: #354735; font-weight: 800; }
+.progress-label span { width: 9px; height: 9px; border-radius: 50%; background: #5e8757; box-shadow: 0 0 0 4px rgba(94, 135, 87, .12); animation: pulse 1.25s infinite; }
+.progress-card .elapsed { margin-top: 5px; color: #6d7467; font-size: 13px; font-variant-numeric: tabular-nums; }
+.progress-card .delay-note { margin-top: 9px; color: #735b36; font-size: 13px; }
 
 .composer { padding: 14px; border: 1px solid #d4d2ca; border-radius: 16px; background: #fff; box-shadow: 0 14px 40px rgba(42, 42, 36, .08); }
 .composer textarea { width: 100%; resize: none; border: 0; outline: 0; color: #20231f; background: transparent; line-height: 1.55; }
@@ -166,6 +173,8 @@ dd { margin: 0; line-height: 1.5; }
   .chat-panel { min-height: calc(100vh - 70px); padding: 28px 14px 16px; }
   .chat-intro h1 { font-size: 36px; }
   .message { max-width: 90%; }
+  .progress-card { align-items: stretch; flex-direction: column; }
+  .progress-card .stop { align-self: flex-end; }
   .composer-actions small { display: none; }
   .composer-actions { justify-content: flex-end; }
   .page-shell, .narrow-page { width: min(100% - 28px, 720px); padding-top: 32px; }
