@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.6
-- 更新日: 2026-10-20
+- 文書バージョン: v0.7
+- 更新日: 2026-10-22
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -247,6 +247,8 @@ Phase 2のDesktop構成は次のとおり。
 
 Phase 3でAsk Codexを追加するときは、Desktopでは右ペイン、MobileではDrawerまたは別タブに切り替える。Viewer Headerにはタイトル、Repository、Branch、Commit SHA、文書種別、詳細度、対象読者、テーマ、表示密度、作成日時を表示する。
 
+blockの1列・2列表示はviewportではなくViewer本文containerの幅で切り替える。Phase 3で右ペインを追加して本文containerが狭くなった場合も、rendererのHTMLを変更せず1列表示へ切り替える。
+
 主要操作は次のとおり。
 
 - 再生成
@@ -318,6 +320,7 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 - 自動再試行はGETと安全な接続復旧に限定する
 - POSTの再試行にはIdempotency Keyを使う
 - SSEはEvent IDを保持し、再接続で`Last-Event-ID`を送信する
+- Generation Jobは`queued / running`の間、SSE接続中も5秒間隔のREST取得で永続状態を確認する
 
 ## 10. エラー表示
 
