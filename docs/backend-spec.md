@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.7
-- 更新日: 2026-10-22
+- 文書バージョン: v0.8
+- 更新日: 2026-10-25
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -89,25 +89,30 @@ App Serverのwire schemaをRoute層やDB modelへ漏らさない。`CodexThread`
 - `turn/completed`をTurnの最終状態の正本とする
 - `error`と失敗Turnからアプリ内エラーを構築する
 
-Repositoryを対象とするThread/Turnは以下のポリシーを既定とする。
+Repositoryを対象とするThreadは、Codex CLI `0.164.0`のPermission Profileを`thread/start.params.config`へ渡し、Repositoryと必要最小限のplatform/runtime pathだけを読み取り可とする。旧`sandboxPolicy.readOnly.access`は同versionのApp Server schemaにないため使用しない。
 
 ```json
 {
   "cwd": "/managed-workspaces/<repository-id>",
   "approvalPolicy": "never",
-  "sandboxPolicy": {
-    "type": "readOnly",
-    "access": {
-      "type": "restricted",
-      "includePlatformDefaults": true,
-      "readableRoots": ["/managed-workspaces/<repository-id>"]
+  "config": {
+    "default_permissions": "<app-generated-unique-profile>",
+    "permissions": {
+      "<app-generated-unique-profile>": {
+        "filesystem": {
+          ":root": "deny",
+          ":minimal": "read",
+          ":workspace_roots": {".": "read"}
+        },
+        "network": {"enabled": false}
+      }
     },
-    "networkAccess": false
+    "web_search": "disabled"
   }
 }
 ```
 
-実際のパスは設定値から解決する。ユーザー入力やDB上の値をそのまま`cwd`や`readableRoots`に使用しない。
+実際のパスは設定値から解決する。ユーザー入力やDB上の値をそのまま`cwd`に使用しない。Permission Profileと旧`sandbox_mode`、`sandbox_workspace_write`、CLIの`--sandbox`、Thread/Turnの`sandbox`・`sandboxPolicy`は併用しない。外部toolを無効化できない場合や、有効configに旧sandbox設定がある場合はfail closedとする。Phase 2 GenerationのProfile生成、外部tool無効化、protocol/config gate、動作gateは[Phase 2詳細設計書](./phase-2-detailed-design.md#141-threadとturn)に定める。
 
 Phase 0 ChatはRepository管理とは独立し、環境設定の`TEST_CHAT_WORKSPACE`を`cwd`に使用する。登録済みRepositoryの有無をSession作成条件にしない。Repositoryを対象とするConversationはPhase 3で別に実装する。
 
@@ -637,6 +642,7 @@ CODEX_EXECUTABLE
 CODEX_CLIENT_NAME
 CODEX_CLIENT_TITLE
 CODEX_CLIENT_VERSION
+GENERATION_ENABLED
 WORKSPACE_ROOT
 TEST_CHAT_WORKSPACE
 GIT_CLONE_TIMEOUT_SECONDS
