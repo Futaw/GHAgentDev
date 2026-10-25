@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.6
-- 更新日: 2026-10-20
+- 文書バージョン: v0.7
+- 更新日: 2026-10-22
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -101,7 +101,8 @@ Repositoryを対象とするThread/Turnは以下のポリシーを既定とす�
       "type": "restricted",
       "includePlatformDefaults": true,
       "readableRoots": ["/managed-workspaces/<repository-id>"]
-    }
+    },
+    "networkAccess": false
   }
 }
 ```
@@ -246,6 +247,7 @@ Clone/Syncは引数配列でプロセス起動し、shell文字列を組み立�
 ### 7.1 API
 
 ```http
+GET    /api/viewer-options
 GET    /api/repositories/{repository_id}/viewers
 POST   /api/repositories/{repository_id}/viewers
 GET    /api/viewers/{viewer_id}
@@ -268,7 +270,7 @@ Viewer作成は`202 Accepted`で`job_id`を返し、この時点の`viewer_id`�
 ```text
 queued
   ↓
-preparing_workspace
+preparing_repository
   ↓
 starting_thread
   ↓
@@ -560,6 +562,8 @@ Phase 0はFastAPI同一プロセスのasync taskでもよいが、Generation Job
 - HTTP request lifecycleとJob lifecycleを分離する
 - JobはDBに状態を書いてから実行する
 - 同一RepositoryのSync中にGenerationを開始しない
+- `queued`のGeneration Jobもactiveとして扱い、Task開始前のSyncとRepository削除を拒否する
+- SyncとGenerationの開始判定ではRepository行をlockし、Repository状態とactive Jobを同じ短いtransactionで確認する
 - 同一Conversationで複数Turnを同時実行しない
 - キャンセルはApp Serverへ伝播し、最終状態をDBに保存する
 - プロセス異常終了後に`running`のまま残ったJobを回復または失敗化する

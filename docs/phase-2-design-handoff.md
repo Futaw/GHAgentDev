@@ -1,15 +1,15 @@
 # RepoSpec Viewer Phase 2 詳細設計の引き継ぎ
 
-- 更新日: 2026-10-21
+- 更新日: 2026-10-22
 - 引き継ぎ先: Phase 2の設計を扱う新しいチャット
 - 作業対象: Phase 2「Viewer生成と保存」の詳細設計の確認・補完
 - 実装: この引き継ぎでは行わない
 
-この文書は、別のチャットでPhase 2の設計作業をすぐ再開するための引き継ぎ資料である。Phase 2の仕様自体は[Phase 2詳細設計書](./phase-2-detailed-design.md)を参照する。
+この文書は、別のチャットでPhase 2の設計作業をすぐ再開するために作成した引き継ぎ資料である。2026-10-22に記載した論点の精査を完了した。現在の仕様は[Phase 2詳細設計書](./phase-2-detailed-design.md) v1.1を参照する。
 
 ## 1. 現在の状態
 
-Phase 2詳細設計書はv1.0がPull Request #16で`main`へマージ済みである。そのため、新しいチャットでは白紙から設計書を作らない。現行設計と実装済みのPhase 0・1を読み、矛盾、未定義、必要以上に複雑な箇所がないかを確認する。変更が必要な場合だけ、設計書を更新する。
+Phase 2詳細設計書v1.0はPull Request #16で`main`へマージ済みである。その後の精査では、固定レイアウトにしない方針と12種類のblock catalogを維持したまま、配置判定、diagram fallback、状態遷移、競合制御、Git ref、CLI確認条件をv1.1として補完した。
 
 Phase 0のChat進捗表示、画面移動中のSession維持、Sessionエラー復帰を含むPull Request #20は、2026-10-21時点で`main`へマージ済みである。Phase 2の設計は最新の`main`を前提とする。
 
@@ -69,7 +69,7 @@ Viewer本文の正本は、Codexが生成する`ViewerDocument`構造化JSONと�
 
 rendererは完全なHTML documentではなく、Viewer本文のHTML fragmentを作る。ReactはViewer Header、目次、操作、将来のQ&A領域を管理する。HTML fragmentはThemeとDensityに依存させない。
 
-Desktopではblockの種類と情報量により全幅または最大2列で表示する。幅1,024px未満ではすべてを1列にする。blockの順序は並べ替えない。
+Desktopではblockの種類と情報量により全幅または最大2列で表示する。Viewer本文containerが1,024px未満の場合はすべてを1列にする。blockの順序は並べ替えない。
 
 ### 3.3 生成と保存
 
@@ -99,23 +99,24 @@ Viewer内Q&A、ConversationとMessageの永続化、Source Code Viewer、共有U
 | テーマだけを切り替える | ThemeとDensityを分け、本文と切り離す |
 | 画面モックを実装形とする | 画面モックは生成結果の一例として扱う |
 
-## 5. 新しいチャットで確認すること
+## 5. 精査で確認したこと
 
-現行設計の方針を保ちながら、次の点を実装前に確認する。
+現行設計の方針を保ちながら、次の点を確認し、Phase 2詳細設計書v1.1へ反映した。
 
-1. 12種類のblock catalogに役割の重複や不足がないか。初期実装に対して必要以上に複雑ではないか。
-2. `paragraph`や`steps`を「長文」として全幅にする判定条件は、実装者が一意に判断できるか。
-3. diagramをカード表示から表形式へ切り替える条件は、テスト可能な形で定義されているか。
-4. Document Type profileの推奨観点が、固定章を強制せずに品質のばらつきを抑えられる内容か。
-5. `ViewerDocument`の上限値、Generation Jobの状態遷移、API、DB、Git ref、競合制御がPhase 1の実装と矛盾しないか。
-6. Viewer画面の共通shellと本文containerが、Phase 3のQ&A追加時にrendererのHTML変更を強制しない分離になっているか。
-7. 自動試験と手動確認が、単一の見本Viewerだけでなく、blockの組み合わせと情報量の差を検証できるか。
+1. 12種類のblockは維持し、似た型の選択規則と重複禁止を追加した。
+2. block typeごとのcompact判定と、隣接blockを2列化する規則を数値で定義した。
+3. diagramを表形式へ切り替える条件をnode数、edge数、次数、段階、group数で定義した。
+4. Document Type profileを調査時の確認項目とし、根拠がない観点と明示要求時のlimitationsを定義した。
+5. Job状態更新をcompare-and-setとし、queued中を含むSync・Generation・削除の競合制御を定義した。
+6. Viewer revisionごとの不変Git refへ変更し、DB失敗時に既存Viewerを巻き戻さない方式にした。
+7. Viewer本文containerのCSS Container Queryにより、Phase 3のQ&A pane追加時もrenderer HTMLを変更せず1列化できるようにした。
+8. SSEと5秒間隔のREST確認を併用し、in-memory buffer喪失後の復帰を定義した。
 
 ## 6. 実装開始前の注意点
 
-設計時のローカルCodex CLIは`0.154.0-alpha.6.2`であり、App Serverの生成schemaに`readOnly.access.readableRoots`が含まれていなかった。2026-10-21時点のローカルCLIも同じversionである。
+設計時のローカルCodex CLIは`0.154.0-alpha.6.2`である。2026-10-22に`generate-json-schema`を再実行し、App Serverの生成schemaに`readOnly.access.readableRoots`が含まれないことを再確認した。
 
-Phase 2のGeneration実装を開始する前に、制限付きread-only accessを受理するCLIへ更新し、生成されたApp Server JSON Schemaを再確認する。設定を外して広い読み取り権限へ戻す方法では回避しない。
+Phase 2のGeneration実装を開始する前に、制限付きread-only accessを受理するCLIへ更新し、生成されたApp Server JSON Schemaと実App Serverの読み取り範囲を確認する。設定を外して広い読み取り権限へ戻す方法では回避しない。詳しいschema gateと動作gateはPhase 2詳細設計書14.1に定めた。
 
 新しいチャットの作業が設計のみである場合、CLIの更新は行わない。対応versionの確認方法と実装開始条件を設計書で確定する。
 
@@ -133,20 +134,19 @@ Phase 2のGeneration実装を開始する前に、制限付きread-only access�
 
 画面モックは表示例であり、本文を固定レイアウトにする根拠として扱わない。
 
-## 8. 新しいチャットの作業手順
+## 8. 今回の精査で実施した作業手順
 
-1. 作業ツリーと現在のブランチを確認する。
-2. `main`を`origin/main`の最新状態へ更新する。
-3. 参照順序に従って設計書と実装を読む。
-4. 現行設計の矛盾、未定義、過剰な複雑さを根拠とともに整理する。
-5. 設計の選択肢で結果が大きく変わる場合は、文書を変更する前にユーザーと方針を合わせる。
-6. 変更が必要な場合は、新しい`codex/<task-name>`ブランチで設計書だけを更新する。
-7. 上位仕様と詳細設計の整合性、Markdown、リンク、例示の構文を確認する。
-8. Pull Requestを作成し、変更点、確認結果、残る注意点を報告する。Pull Requestはマージしない。
+1. 作業ツリーと現在のブランチを確認した。
+2. `main`を`origin/main`の最新状態へ更新した。
+3. 参照順序に従って設計書と実装を読んだ。
+4. 現行設計の矛盾、未定義、過剰な複雑さを根拠とともに整理した。
+5. `codex/refine-phase-2-design`ブランチで設計書だけを更新した。
+6. 上位仕様と詳細設計の整合性、Markdown、リンク、例示の構文を確認した。
+7. Pull Requestを作成し、変更点、確認結果、残る注意点を報告する。Pull Requestはマージしない。
 
-## 9. 新しいチャットに貼り付ける開始プロンプト
+## 9. 精査開始時に使用したプロンプト
 
-以下をそのまま新しいチャットへ貼り付けてください。
+以下は2026-10-22の設計精査を開始したときの記録である。精査は完了しているため、次回作業の開始プロンプトとしては使用しない。
 
 ```text
 RepoSpec ViewerのPhase 2「Viewer生成と保存」の詳細設計を確認・補完してください。作業リポジトリは `/Users/futaw/Documents/ChatGPT/ソース解説AIエージェント作成` です。
