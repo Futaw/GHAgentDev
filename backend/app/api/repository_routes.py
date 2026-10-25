@@ -20,8 +20,15 @@ def _service(request: Request) -> RepositoryService:
 
 @router.get("", response_model=RepositoryListResponse)
 async def list_repositories(request: Request) -> RepositoryListResponse:
+    models = await _service(request).list()
     return RepositoryListResponse(
-        items=[RepositoryResponse.from_model(item) for item in await _service(request).list()]
+        items=[
+            RepositoryResponse.from_model(
+                item,
+                await request.app.state.generation_store.count_viewers(item.id),
+            )
+            for item in models
+        ]
     )
 
 
@@ -39,7 +46,10 @@ async def create_repository(
 
 @router.get("/{repository_id}", response_model=RepositoryResponse)
 async def get_repository(request: Request, repository_id: UUID) -> RepositoryResponse:
-    return RepositoryResponse.from_model(await _service(request).get(repository_id))
+    return RepositoryResponse.from_model(
+        await _service(request).get(repository_id),
+        await request.app.state.generation_store.count_viewers(repository_id),
+    )
 
 
 @router.post(

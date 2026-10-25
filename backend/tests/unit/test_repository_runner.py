@@ -40,3 +40,24 @@ async def test_runner_exclusive_lock_rejects_background_and_second_delete() -> N
             async with runner.exclusive(repository_id):
                 pass
     await runner.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_runner_checks_cancelled_generation_after_semaphore_before_lock() -> None:
+    runner = RepositoryOperationRunner()
+    repository_id = uuid4()
+    gate = asyncio.Semaphore(0)
+    operation = pytest.fail
+
+    task = runner.schedule(
+        repository_id,
+        operation,
+        gate=gate,
+        should_run=lambda: asyncio.sleep(0, result=False),
+    )
+    await asyncio.sleep(0)
+    assert not runner._locks[repository_id].locked()
+    gate.release()
+    await task
+    assert not runner._locks[repository_id].locked()
+    await runner.shutdown()

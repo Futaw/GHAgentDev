@@ -7,7 +7,9 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from backend.app.repositories.models import Base
+from backend.app.generation import models as generation_models  # noqa: F401
+from backend.app.orm import Base
+from backend.app.repositories import models as repository_models  # noqa: F401
 from backend.app.settings import Settings
 
 config = context.config

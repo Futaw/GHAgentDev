@@ -5,11 +5,9 @@ from enum import StrEnum
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, DateTime, String, Uuid
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
-
-class Base(DeclarativeBase):
-    pass
+from backend.app.orm import Base
 
 
 class RepositoryStatus(StrEnum):

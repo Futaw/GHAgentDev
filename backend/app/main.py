@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from uuid import uuid4
@@ -12,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.api.repository_routes import router as repository_router
 from backend.app.api.routes import router
+from backend.app.api.viewer_routes import router as viewer_router
 from backend.app.auth import AuthService
 from backend.app.chat import ChatConflictError, ChatNotFoundError, ChatService
 from backend.app.codex import (
@@ -21,6 +23,20 @@ from backend.app.codex import (
     CodexTimeoutError,
 )
 from backend.app.db import Database
+from backend.app.generation.runner import GenerationRunner
+from backend.app.generation.service import (
+    GenerationAlreadyRunningError,
+    GenerationDisabledError,
+    GenerationJobNotFoundError,
+    GenerationService,
+    IdempotencyKeyReusedError,
+    InvalidViewerOptionError,
+    ViewerBusyError,
+    ViewerChangedError,
+    ViewerDeleteError,
+    ViewerNotFoundError,
+)
+from backend.app.generation.store import GenerationStore
 from backend.app.repositories import (
     DatabaseUnavailableError,
     RepositoryAlreadyRegisteredError,
@@ -59,21 +75,46 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
     repository_service = RepositoryService(
         repository_store, git_client, workspace, operation_runner
     )
+    generation_store = GenerationStore(database.sessions)
+    generation_runner = GenerationRunner(codex_client, generation_store, app_settings)
+    generation_service = GenerationService(
+        generation_store,
+        repository_service,
+        operation_runner,
+        generation_runner,
+        app_settings,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        cleanup_task: asyncio.Task[None] | None = None
         app.state.settings = app_settings
         app.state.codex = codex_client
         app.state.auth_service = AuthService(codex_client, app_settings)
         app.state.chat_service = ChatService(codex_client, app_settings)
         app.state.database = database
         app.state.repository_service = repository_service
+        app.state.generation_store = generation_store
+        app.state.generation_service = generation_service
         workspace.prepare()
         await codex_client.start()
         try:
             await repository_service.recover_interrupted()
+            await generation_service.recover_interrupted()
+            await generation_service.reconcile_refs()
+            try:
+                await generation_store.cleanup_terminal(app_settings.generation_job_retention_days)
+            except SQLAlchemyError as exc:
+                logger.warning("Generation Job cleanup failed: %s", type(exc).__name__)
+            cleanup_task = asyncio.create_task(
+                _generation_cleanup_loop(generation_store, app_settings),
+                name="generation-job-cleanup",
+            )
             yield
         finally:
+            if cleanup_task:
+                cleanup_task.cancel()
+                await asyncio.gather(cleanup_task, return_exceptions=True)
             await operation_runner.shutdown()
             await database.close()
             await codex_client.stop()
@@ -88,6 +129,71 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
     )
     app.include_router(router)
     app.include_router(repository_router)
+    app.include_router(viewer_router)
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self'; "
+            "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
+            "base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+        )
+        return response
+
+    @app.exception_handler(GenerationDisabledError)
+    async def generation_disabled_handler(
+        request: Request, exc: GenerationDisabledError
+    ) -> JSONResponse:
+        return _problem(request, 503, "Generation disabled", str(exc), "GENERATION_DISABLED", False)
+
+    @app.exception_handler(ViewerNotFoundError)
+    async def viewer_not_found_handler(request: Request, exc: ViewerNotFoundError) -> JSONResponse:
+        return _problem(request, 404, "Viewer not found", str(exc), "VIEWER_NOT_FOUND", False)
+
+    @app.exception_handler(GenerationJobNotFoundError)
+    async def generation_job_not_found_handler(
+        request: Request, exc: GenerationJobNotFoundError
+    ) -> JSONResponse:
+        return _problem(
+            request, 404, "Generation job not found", str(exc), "GENERATION_JOB_NOT_FOUND", False
+        )
+
+    @app.exception_handler(GenerationAlreadyRunningError)
+    async def generation_running_handler(
+        request: Request, exc: GenerationAlreadyRunningError
+    ) -> JSONResponse:
+        return _problem(
+            request, 409, "Generation already running", str(exc), "GENERATION_ALREADY_RUNNING", True
+        )
+
+    @app.exception_handler(ViewerBusyError)
+    async def viewer_busy_handler(request: Request, exc: ViewerBusyError) -> JSONResponse:
+        return _problem(request, 409, "Viewer busy", str(exc), "VIEWER_BUSY", True)
+
+    @app.exception_handler(ViewerChangedError)
+    async def viewer_changed_handler(request: Request, exc: ViewerChangedError) -> JSONResponse:
+        return _problem(request, 409, "Viewer changed", str(exc), "VIEWER_CHANGED", True)
+
+    @app.exception_handler(IdempotencyKeyReusedError)
+    async def idempotency_handler(request: Request, exc: IdempotencyKeyReusedError) -> JSONResponse:
+        return _problem(
+            request, 409, "Idempotency key reused", str(exc), "IDEMPOTENCY_KEY_REUSED", False
+        )
+
+    @app.exception_handler(InvalidViewerOptionError)
+    async def invalid_viewer_option_handler(
+        request: Request, exc: InvalidViewerOptionError
+    ) -> JSONResponse:
+        return _problem(
+            request, 422, "Invalid viewer option", str(exc), "INVALID_VIEWER_OPTION", False
+        )
+
+    @app.exception_handler(ViewerDeleteError)
+    async def viewer_delete_handler(request: Request, exc: ViewerDeleteError) -> JSONResponse:
+        return _problem(
+            request, 500, "Viewer deletion failed", str(exc), "VIEWER_DELETE_FAILED", True
+        )
 
     @app.exception_handler(InvalidGitHubUrlError)
     async def invalid_github_url_handler(
@@ -228,6 +334,15 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
         )
 
     return app
+
+
+async def _generation_cleanup_loop(store: GenerationStore, settings: Settings) -> None:
+    while True:
+        await asyncio.sleep(24 * 60 * 60)
+        try:
+            await store.cleanup_terminal(settings.generation_job_retention_days)
+        except SQLAlchemyError as exc:
+            logger.warning("Generation Job cleanup failed: %s", type(exc).__name__)
 
 
 def _problem(

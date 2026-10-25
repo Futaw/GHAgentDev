@@ -35,7 +35,7 @@ class RepositoryResponse(BaseModel):
     updated_at: datetime
 
     @classmethod
-    def from_model(cls, model: RepositoryModel) -> RepositoryResponse:
+    def from_model(cls, model: RepositoryModel, viewer_count: int = 0) -> RepositoryResponse:
         error = None
         if model.last_error_code and model.last_error_message:
             error = RepositoryErrorResponse(
@@ -53,6 +53,7 @@ class RepositoryResponse(BaseModel):
             status=model.status,
             last_synced_at=model.last_synced_at,
             last_error=error,
+            viewer_count=viewer_count,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

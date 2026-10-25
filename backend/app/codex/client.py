@@ -143,6 +143,7 @@ class CodexAppServer:
             self._process = await asyncio.create_subprocess_exec(
                 self._config.codex_executable,
                 "app-server",
+                "--strict-config",
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -247,6 +248,10 @@ class CodexAppServer:
                 }
             )
         logger.warning("Rejected Codex server request: %s", method)
+        context = message.get("params")
+        details = dict(context) if isinstance(context, dict) else {}
+        details["method"] = method
+        await self._dispatch("app_server/server_request_rejected", details)
 
     async def _send(self, message: dict[str, Any]) -> None:
         process = self._process

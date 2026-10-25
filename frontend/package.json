@@ -12,9 +12,13 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
+    "@hookform/resolvers": "^5.2.2",
+    "dompurify": "^3.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.9.0"
+    "react-hook-form": "^7.65.0",
+    "react-router-dom": "^7.9.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
