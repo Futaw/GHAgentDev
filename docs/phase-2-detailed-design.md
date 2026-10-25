@@ -1,7 +1,7 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
-- 文書バージョン: v1.1
-- 更新日: 2026-10-22
+- 文書バージョン: v1.2
+- 更新日: 2026-10-25
 - ステータス: 詳細設計確定・実装前
 - 対象Phase: Phase 2「Viewer生成と保存」
 
@@ -66,6 +66,7 @@ Viewer内Q&AとSource Code ViewerはPhase 3で実装する。Phase 2のViewer画
 | Theme | 見た目を切り替える | 配色・書体の`Theme`と余白・文字量の`Density`を分離する |
 | 画面モック | Viewer例を1種類掲載 | 特定の生成結果例として扱い、固定レイアウトの仕様にはしない |
 | テスト | ViewerDocumentとXSSの単体検証 | blockの組み合わせ、上限値、レスポンシブ、Theme/Densityも検証する |
+| Codexの読み取り範囲 | `sandboxPolicy.readOnly.access`で制限する想定 | Codex CLI `0.164.0`のPermission ProfileをThread設定として渡し、Repositoryと必要最小限のruntime pathだけを読み取り可にする |
 
 次の方針は変更しない。
 
@@ -908,52 +909,80 @@ ThemeとDensityの変更は`content_revision`を更新しない。このため�
 
 Generationごとにephemeral Threadを1件作る。Generation ThreadをPhase 3のQ&Aへ流用しない。
 
-`turn/start`には次を設定する。
+Codex CLI `0.164.0`では、App Serverの`SandboxPolicy.readOnly`に読み取りrootを指定できない。一方、同versionはPermission Profileによるfilesystemとnetworkの制限をサポートする。そのため、Generationでは旧`SandboxPolicy`を使用せず、`thread/start.params.config`にGeneration専用Permission Profileを渡す。
+
+App Serverは`--strict-config`付きで起動する。Profile名は`repospec_generation_<job-id>`形式でJobごとに一意にし、下位のconfig layerに同名Profileが存在して追加rootなどがmergeされることを防ぐ。`job-id`はアプリが発行したUUIDからhyphenを除いた値を使い、ユーザー入力をProfile名に含めない。
+
+`thread/start`には次を設定する。`<profile-name>`のkeyは上記の生成値である。
+
+```json
+{
+  "cwd": "/managed-workspaces/repositories/<repository-id>",
+  "ephemeral": true,
+  "approvalPolicy": "never",
+  "config": {
+    "default_permissions": "<profile-name>",
+    "permissions": {
+      "<profile-name>": {
+        "description": "RepoSpec Viewer Generation read-only access",
+        "filesystem": {
+          ":root": "deny",
+          ":minimal": "read",
+          ":workspace_roots": {
+            ".": "read"
+          }
+        },
+        "network": {
+          "enabled": false
+        }
+      }
+    },
+    "web_search": "disabled"
+  }
+}
+```
+
+`turn/start`には次を設定する。`sandboxPolicy`は送信しない。
 
 ```json
 {
   "threadId": "<codex-thread-id>",
   "input": [{"type": "text", "text": "<generation prompt>"}],
-  "cwd": "/managed-workspaces/repositories/<repository-id>",
   "approvalPolicy": "never",
-  "sandboxPolicy": {
-    "type": "readOnly",
-    "access": {
-      "type": "restricted",
-      "includePlatformDefaults": true,
-      "readableRoots": [
-        "/managed-workspaces/repositories/<repository-id>"
-      ]
-    },
-    "networkAccess": false
-  },
+  "disabledPluginIds": ["<installed-plugin-id>", "..."],
   "outputSchema": {"type": "object"}
 }
 ```
 
-`cwd`と`readableRoots`は`WorkspaceResolver`がRepository IDから解決する。ユーザー入力、Repository名、URLをpathへ連結しない。network accessは有効にしない。
+`cwd`は`WorkspaceResolver`がRepository IDから解決したreal pathだけを使う。このpathがThreadのruntime workspace rootとなり、`:workspace_roots`の`.`に対する`read`が適用される。ユーザー入力、Repository名、URLをpathへ連結しない。`:minimal`はCLIと共通developer toolの実行に必要なplatform/runtime pathの読み取りに限定し、先行設計の`includePlatformDefaults`に対応する。Repositoryの兄弟directory、ユーザーdocument、認証情報pathは読み取り許可に含めない。
 
-OpenAI公式のApp Server仕様では、`outputSchema`は現在のTurnだけに適用され、`readOnly`は読み取り範囲を制限できる。実装時は同梱CLIの生成schemaも確認する。現在のローカルCLI `0.154.0-alpha.6.2`が生成するschemaには`readOnly.access`が含まれていないため、このfieldを受理するCLIへ更新するまでPhase 2のGenerationを有効化しない。設定を外して広い読み取り権限へ戻す方法では回避しない。
+Permission Profileと旧`sandbox_mode`、`sandbox_workspace_write`、CLIの`--sandbox`、Thread/Turnの`sandbox`・`sandboxPolicy`は併用しない。App Server起動後に`config/read` `includeLayers: true`で有効configを調べ、いずれかの旧設定が1つでもあればGenerationを`CODEX_SANDBOX_UNSUPPORTED`で無効化する。Permission Profileがmanaged requirementsにより拒否された場合、未知のconfig fieldがある場合、または起動時・Thread作成時にwarningやerrorとなった場合も広い権限へfallbackしない。
 
-実装開始条件はversion番号ではなく、使用するCLIで次のschema gateと動作gateを両方満たすこととする。
+GenerationではRepository調査とStructured Output以外の外部toolを使わない。`web_search`は`disabled`に固定する。`plugin/list`で取得した全Plugin IDを`disabledPluginIds`へ渡す。Pluginが0件の場合は空配列を渡す。`config/read`で検出したAppは`apps._default.enabled = false`に加え、各Appの`enabled = false`をThread configでoverrideする。standalone MCP serverも各`mcp_servers.<name>.enabled = false`をoverrideする。検出または無効化を確認できない場合はGenerationを開始しない。browser、computer use、アプリ連携をGenerationの入力とtool inventoryに含めない。
 
-Schema gate:
+実装開始条件はversion番号だけではなく、使用するCLIで次のprotocol/config gateと動作gateを両方満たすこととする。
+
+#### Protocol/config gate
 
 1. `codex --version`の結果を確認記録へ残す。
 2. `codex app-server generate-json-schema --out <temporary-directory>`を実行する。
-3. 生成された`v2/TurnStartParams.json`で、`sandboxPolicy.type = readOnly`に`access`が定義されていることを確認する。
-4. restricted accessに`includePlatformDefaults`と`readableRoots`があり、`readableRoots`がpath配列であることを確認する。
-5. 同じTurn schemaに`outputSchema`と`networkAccess`があることを確認する。
+3. `v2/ThreadStartParams.json`に`cwd`、`ephemeral`、`approvalPolicy`、`config`があり、`config`がobjectを受理することを確認する。
+4. `v2/TurnStartParams.json`に`threadId`、`input`、`approvalPolicy`、`disabledPluginIds`、`outputSchema`があることを確認する。
+5. 本節のProfileと`web_search = "disabled"`を`codex app-server --strict-config --print-startup-config`に渡し、exit code 0で受理されることを確認する。
+6. `config/read` `includeLayers: true`と`configRequirements/read`を使い、旧sandbox設定がないこと、一意Profileがrequirementsで禁止されていないこと、外部toolを無効化できることを確認する。
 
-動作gate:
+#### 動作gate
 
-1. 管理Workspace配下に読み取り許可fixture、その兄弟directoryに機密情報を含まない拒否確認用fixtureを作る。
-2. 実Codex App Serverへ`initialize / initialized / thread/start / turn/start`を送り、本文書の`readOnly + restricted readableRoots + networkAccess: false + outputSchema`を指定する。
-3. 許可fixtureは読み取れ、兄弟directoryは読み取れず、どちらのfixtureも変更されないことを確認する。
-4. 追加権限要求が発生した場合はgatewayが拒否し、TurnをGeneration成功として扱わないことを確認する。
-5. この確認を結合testの実行記録へ残す。fake app-serverだけの成功では動作gateを満たしたことにしない。
+1. 管理Workspace配下に読み取り許可fixture、その兄弟directoryに機密情報を含まない拒否確認用fixture、管理Workspace外に認証情報でないsentinelを作る。
+2. 実Codex App Serverへ`initialize / initialized / config/read / configRequirements/read / plugin/list / thread/start / turn/start`を送り、本節のPermission Profileと`outputSchema`を指定する。
+3. 許可fixtureのみを読み取れ、兄弟directoryとWorkspace外sentinelは読み取れないことを確認する。
+4. 許可fixtureに対して既存fileの更新、新規fileの作成、削除、rename、`.git`の更新がすべて拒否され、実行後のfixture hashが不変であることを確認する。
+5. loopbackとpublic endpointの両方へのcommand起点network accessが失敗し、web search、Plugin、App、MCP、browserがTurnで利用できないことを確認する。
+6. 追加権限要求がgatewayに拒否され、TurnとJobが成功扱いにならないことを確認する。
+7. `outputSchema`に適合したTurnが完了し、制限違反を含むTurnはViewerを保存しないことを確認する。
+8. この確認をCLI version、OS、生成schemaのhashとともに結合testの実行記録へ残す。fake app-serverだけの成功では動作gateを満たしたことにしない。
 
-2026-10-22に`0.154.0-alpha.6.2`でschemaを再生成した結果、`outputSchema`と`readOnly.networkAccess`は存在したが、`readOnly.access`、`includePlatformDefaults`、`readableRoots`は存在しなかった。このversionはschema gate不合格であるため、動作gateへ進めず、Phase 2 Generationを有効化しない。
+2026-10-25にCodex CLI `0.164.0`でschemaを再生成した。`SandboxPolicy.readOnly`に`access`、`includePlatformDefaults`、`readableRoots`は存在しないが、`ThreadStartParams.config`と`TurnStartParams.outputSchema`は存在する。また、本節のPermission Profileと`web_search = "disabled"`は`--strict-config --print-startup-config`でexit code 0となった。これによりprotocol/config gateの1〜5は確認済みとする。gate 6と動作gateはGeneration実装に先立つ実App Server用harnessで確認する。すべて合格するまでGenerationはfeature flagで無効のままとする。
 
 ### 14.2 Promptの構成
 
@@ -1144,6 +1173,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 | 422 | `INVALID_VIEWER_OPTION` | 未知の選択肢 | No |
 | 500 | `VIEWER_DELETE_FAILED` | Git refまたはDB削除失敗 | Yes |
 | 503 | `CODEX_UNAVAILABLE` | App Server未接続 | Yes |
+| 503 | `GENERATION_DISABLED` | security gate未合格のためGeneration無効 | No |
 
 ### 18.2 非同期Job error
 
@@ -1166,6 +1196,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 
 | 環境変数 | 初期値 | 用途 |
 |---|---:|---|
+| `GENERATION_ENABLED` | `false` | 14.1の全gate合格後にだけ`true`とするGeneration機能flag |
 | `GENERATION_TIMEOUT_SECONDS` | `900` | 1 Jobの上限時間 |
 | `GENERATION_MAX_CONCURRENCY` | `2` | 異なるRepository間の同時生成数 |
 | `GENERATION_EVENT_BUFFER_SIZE` | `200` | JobごとのSSE event保持数 |
@@ -1197,12 +1228,15 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 - Job状態遷移のcompare-and-set、中止と保存の競合、terminal状態の再更新拒否
 - Idempotency-Keyとrequest hash
 - revision付きGit ref名と作成・削除、孤立refの照合
+- Generation Permission Profileの生成、Jobごとの一意なProfile名、pathの非連結
+- 旧sandbox設定、不明なconfig、無効化できない外部toolのfail-closed判定
 
 ### 20.2 Backend Integration
 
 - Alembic migrationとViewer/Job CRUD
 - Repositoryごとのactive Job一意制約
 - fake app-serverの`outputSchema`付きTurn完了
+- fake app-serverでの`thread/start.config`、全Plugin無効化、追加権限要求拒否
 - JSON delta蓄積、schema修正1回、2回目失敗
 - Generation成功時のViewer、Job、Git ref確定
 - Codex失敗、timeout、切断、中止、process再起動回復
@@ -1213,6 +1247,8 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 - API status、Problem Details、機密情報の非公開
 
 自動テストは外部GitHubと実Codexの可用性へ依存させない。SourceReference検証はローカルのテスト用Git Repositoryを使う。
+
+実Codexの動作gateは通常の自動テストから分離し、明示的な実行コマンドでだけ起動する。外部GitHubは使わず、一時directoryのfixtureとsentinelだけを使う。実行後はhashとGit statusで非変更を検証し、fixtureを削除する。
 
 ### 20.3 Frontend Unit / Component
 
@@ -1243,7 +1279,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 
 ## 21. 実装順序
 
-1. 14.1のschema gateと動作gateを満たすCodex CLIを確認し、versionと確認結果を記録する。
+1. 14.1のprotocol/config gateの残りと動作gateをCodex CLI `0.164.0`で実行し、versionと確認結果を記録する。
 2. Viewer/Generation Job model、migration、選択肢、API DTOを追加する。
 3. Repository単位の排他とGit ref管理を追加する。
 4. ViewerDocument model、JSON Schema、SourceReference検証を実装する。
@@ -1253,7 +1289,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 8. browser sanitizer、Theme/Density、responsiveを実装する。
 9. 結合test、E2E、実Codexでのread-only確認を行う。
 
-実装前にCodex CLIを、制限付きread-only accessを受理するversionへ更新し、生成されたApp Server JSON Schemaで`readOnly.access.readableRoots`を確認する。
+実装は`CODEX_EXECUTABLE=/Users/futaw/.local/bin/codex`で`0.164.0`を明示し、ChatGPTデスクトップアプリ同梱の`0.154.0-alpha.6.2`へ暗黙にfallbackしない。14.1のすべてのgateに合格するまでGenerationは有効化しない。
 
 ## 22. 完了条件
 
@@ -1281,6 +1317,8 @@ Viewer document containerは、Phase 3でQ&A paneを追加してもrendererのHT
 ## 24. 外部仕様
 
 - [Codex App Server - OpenAI Docs](https://developers.openai.com/codex/app-server/)
+- [Codex Permissions - OpenAI Docs](https://learn.chatgpt.com/docs/permissions)
+- [Codex Configuration Reference - OpenAI Docs](https://learn.chatgpt.com/docs/config-file/config-reference)
 - [Structured Outputs - OpenAI Docs](https://developers.openai.com/api/docs/guides/structured-outputs)
 - [Jinja autoescape - Jinja Documentation](https://jinja.palletsprojects.com/en/stable/api/#autoescaping)
 - [nh3 - GitHub](https://github.com/messense/nh3)
