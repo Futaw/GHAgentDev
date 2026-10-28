@@ -8,6 +8,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from backend.app.generation.models import GenerationJobModel, ViewerModel
 from backend.app.repositories.models import RepositoryModel, RepositoryStatus
 
 
@@ -53,9 +54,18 @@ class RepositoryStore:
                 select(RepositoryModel).where(RepositoryModel.canonical_github_url == canonical_url)
             )
 
-    async def has_related_data(self, repository_id: UUID) -> bool:
-        # Phase 1 has no related tables. Phase 2 will replace this with an EXISTS query.
-        return False
+    async def has_active_generation(self, repository_id: UUID) -> bool:
+        async with self.sessions() as session:
+            return (
+                await session.scalar(
+                    select(GenerationJobModel.id)
+                    .where(
+                        GenerationJobModel.repository_id == repository_id,
+                        GenerationJobModel.status.in_(["queued", "running"]),
+                    )
+                    .limit(1)
+                )
+            ) is not None
 
     async def delete(self, repository_id: UUID) -> bool:
         async with self.sessions() as session:
@@ -71,25 +81,70 @@ class RepositoryStore:
         expected: Collection[RepositoryStatus],
         new_status: RepositoryStatus,
     ) -> RepositoryModel | None:
-        now = datetime.now(UTC)
         async with self.sessions() as session:
-            result = await session.execute(
-                update(RepositoryModel)
-                .where(
-                    RepositoryModel.id == repository_id,
-                    RepositoryModel.status.in_([item.value for item in expected]),
+            repository = await session.scalar(
+                select(RepositoryModel).where(RepositoryModel.id == repository_id).with_for_update()
+            )
+            if repository is None or repository.status not in {item.value for item in expected}:
+                await session.rollback()
+                return None
+            if new_status == RepositoryStatus.SYNCING:
+                active_job = await session.scalar(
+                    select(GenerationJobModel.id)
+                    .where(
+                        GenerationJobModel.repository_id == repository_id,
+                        GenerationJobModel.status.in_(["queued", "running"]),
+                    )
+                    .limit(1)
                 )
-                .values(
-                    status=new_status.value,
-                    last_error_code=None,
-                    last_error_message=None,
-                    updated_at=now,
+                if active_job is not None:
+                    await session.rollback()
+                    return None
+            repository.status = new_status.value
+            repository.last_error_code = None
+            repository.last_error_message = None
+            repository.updated_at = datetime.now(UTC)
+            await session.commit()
+            return repository
+
+    async def prepare_delete(
+        self, repository_id: UUID
+    ) -> tuple[RepositoryModel | None, str | None]:
+        """Lock and validate a repository, then remove only terminal job history."""
+        async with self.sessions() as session:
+            repository = await session.scalar(
+                select(RepositoryModel).where(RepositoryModel.id == repository_id).with_for_update()
+            )
+            if repository is None:
+                return None, "not_found"
+            if repository.status not in {
+                RepositoryStatus.READY.value,
+                RepositoryStatus.FAILED.value,
+            }:
+                return repository, "busy"
+            active_job = await session.scalar(
+                select(GenerationJobModel.id)
+                .where(
+                    GenerationJobModel.repository_id == repository_id,
+                    GenerationJobModel.status.in_(["queued", "running"]),
+                )
+                .limit(1)
+            )
+            if active_job is not None:
+                return repository, "busy"
+            viewer = await session.scalar(
+                select(ViewerModel.id).where(ViewerModel.repository_id == repository_id).limit(1)
+            )
+            if viewer is not None:
+                return repository, "in_use"
+            await session.execute(
+                delete(GenerationJobModel).where(
+                    GenerationJobModel.repository_id == repository_id,
+                    GenerationJobModel.status.in_(["completed", "failed", "cancelled"]),
                 )
             )
             await session.commit()
-            if result.rowcount != 1:
-                return None
-            return await session.get(RepositoryModel, repository_id)
+            return repository, None
 
     async def mark_ready(
         self,

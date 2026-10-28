@@ -72,13 +72,13 @@ async def test_repository_delete_safety_failures_and_retry(tmp_path: Path) -> No
 
             in_use = make_repository()
             await service.store.create(in_use)
-            original_related = service.store.has_related_data
-            service.store.has_related_data = AsyncMock(return_value=True)
+            original_prepare = service.store.prepare_delete
+            service.store.prepare_delete = AsyncMock(return_value=(in_use, "in_use"))
             in_use_response = await client.delete(f"/api/repositories/{in_use.id}")
             assert in_use_response.status_code == 409
             assert in_use_response.json()["code"] == "REPOSITORY_IN_USE"
             assert await repository_exists(client, in_use.id)
-            service.store.has_related_data = original_related
+            service.store.prepare_delete = original_prepare
 
             unsafe = make_repository()
             await service.store.create(unsafe)

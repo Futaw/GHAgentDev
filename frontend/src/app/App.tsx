@@ -6,6 +6,9 @@ import { ChatSessionProvider } from '../features/chat/ChatSessionProvider'
 import { RepositoryDetailPage } from '../features/repositories/RepositoryDetailPage'
 import { RepositoryListPage } from '../features/repositories/RepositoryListPage'
 import { RepositoryNewPage } from '../features/repositories/RepositoryNewPage'
+import { GenerationJobPage } from '../features/generation/GenerationJobPage'
+import { ViewerCreatePage } from '../features/viewers/ViewerCreatePage'
+import { ViewerPage } from '../features/viewers/ViewerPage'
 import { AppLayout } from './AppLayout'
 
 export function App() {
@@ -17,6 +20,9 @@ export function App() {
           <Route path="/repositories" element={<RepositoryListPage />} />
           <Route path="/repositories/new" element={<RepositoryNewPage />} />
           <Route path="/repositories/:repositoryId" element={<RepositoryDetailPage />} />
+          <Route path="/repositories/:repositoryId/viewers/new" element={<ViewerCreatePage />} />
+          <Route path="/jobs/:jobId" element={<GenerationJobPage />} />
+          <Route path="/viewers/:viewerId" element={<ViewerPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Route>
       </Route>

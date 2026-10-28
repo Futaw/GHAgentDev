@@ -6,6 +6,7 @@ import { deleteRepository, getRepository, syncRepository } from './repositoryApi
 import { RepositoryDeleteDialog } from './RepositoryDeleteDialog'
 import { RepositoryStatusBadge } from './RepositoryStatusBadge'
 import { isRepositoryProcessing } from './repositoryTypes'
+import { listViewers } from '../viewers/viewerApi'
 
 const displayDate = (value: string | null) => value
   ? new Intl.DateTimeFormat('ja-JP', { dateStyle: 'long', timeStyle: 'medium' }).format(new Date(value))
@@ -31,6 +32,12 @@ export function RepositoryDetailPage() {
     onError: (error) => {
       if (error instanceof ApiError && error.problem.code === 'REPOSITORY_BUSY') void repository.refetch()
     },
+  })
+  const viewers = useQuery({
+    queryKey: ['repositories', repositoryId, 'viewers'],
+    queryFn: () => listViewers(repositoryId),
+    enabled: repository.data?.status === 'ready' && repository.data.viewer_count > 0,
+    retry: false,
   })
   const remove = useMutation({
     mutationFn: () => deleteRepository(repositoryId),
@@ -64,7 +71,7 @@ export function RepositoryDetailPage() {
         <button className="primary" onClick={() => sync.mutate()} disabled={processing || sync.isPending}>{item.status === 'failed' ? '再試行' : '最新コードを取得'}</button>
       </section>
       {sync.isError && !(sync.error instanceof ApiError && sync.error.problem.code === 'REPOSITORY_BUSY') && <div className="error-card" role="alert"><p>同期を開始できませんでした。もう一度お試しください。</p></div>}
-      <section className="detail-grid"><div className="panel"><h2>Repository情報</h2><dl className="detail-list"><div><dt>Default Branch</dt><dd>{item.default_branch ?? '確認中'}</dd></div><div><dt>Commit SHA</dt><dd className="mono break-all">{item.latest_commit_sha ?? '確認中'}</dd></div><div><dt>最終同期日時</dt><dd>{displayDate(item.last_synced_at)}</dd></div><div><dt>登録日時</dt><dd>{displayDate(item.created_at)}</dd></div></dl></div><div className="panel"><div className="panel-heading"><h2>Viewers</h2><button className="secondary" disabled title="Phase 2で利用可能">Viewerを作成</button></div><div className="viewer-placeholder"><p>Viewerはまだありません</p><small>Phase 2で仕様書の生成機能が利用可能になります。</small></div></div></section>
+      <section className="detail-grid"><div className="panel"><h2>Repository情報</h2><dl className="detail-list"><div><dt>Default Branch</dt><dd>{item.default_branch ?? '確認中'}</dd></div><div><dt>Commit SHA</dt><dd className="mono break-all">{item.latest_commit_sha ?? '確認中'}</dd></div><div><dt>最終同期日時</dt><dd>{displayDate(item.last_synced_at)}</dd></div><div><dt>登録日時</dt><dd>{displayDate(item.created_at)}</dd></div></dl></div><div className="panel"><div className="panel-heading"><h2>Viewers</h2>{item.status === 'ready' ? <Link className="secondary button" to={`/repositories/${item.id}/viewers/new`}>Viewerを作成</Link> : <button className="secondary" disabled>Viewerを作成</button>}</div>{viewers.data?.items.length ? <ul className="viewer-list">{viewers.data.items.map((viewer) => <li key={viewer.id}><Link to={`/viewers/${viewer.id}`}><strong>{viewer.title}</strong><span>{viewer.summary}</span><small>{viewer.document_type} · {viewer.commit_sha.slice(0, 7)}</small></Link></li>)}</ul> : <div className="viewer-placeholder"><p>Viewerはまだありません</p><small>Repositoryのソースを調査してViewerを生成できます。</small></div>}</div></section>
       <section className="danger-zone">
         <div><h2>Repositoryを削除</h2><p>RepoSpec Viewerの登録情報とローカルWorkspaceを削除します。GitHub上のRepositoryは変更しません。</p>{deleteDisabledReason && <small>{deleteDisabledReason}</small>}</div>
         <button className="danger-outline" disabled={deleteDisabled} onClick={() => {

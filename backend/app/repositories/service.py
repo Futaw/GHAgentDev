@@ -50,16 +50,24 @@ class RepositoryOperationRunner:
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
         self._stopping = False
 
-    def schedule(self, repository_id: UUID, operation: Callable[[], Awaitable[None]]) -> None:
+    def schedule(
+        self,
+        repository_id: UUID,
+        operation: Callable[[], Awaitable[None]],
+        *,
+        gate: asyncio.Semaphore | None = None,
+        should_run: Callable[[], Awaitable[bool]] | None = None,
+    ) -> asyncio.Task[None]:
         if self._stopping:
             raise RuntimeError("Repository operations are stopping")
         current = self._tasks.get(repository_id)
         lock = self._locks.setdefault(repository_id, asyncio.Lock())
         if lock.locked() or (current and not current.done()):
             raise RepositoryBusyError("Repositoryの処理はすでに実行中です。")
-        task = asyncio.create_task(self._run(repository_id, operation))
+        task = asyncio.create_task(self._run(repository_id, operation, gate, should_run))
         self._tasks[repository_id] = task
         task.add_done_callback(lambda completed: self._task_done(repository_id, completed))
+        return task
 
     @asynccontextmanager
     async def exclusive(self, repository_id: UUID) -> AsyncIterator[None]:
@@ -78,7 +86,24 @@ class RepositoryOperationRunner:
         finally:
             lock.release()
 
-    async def _run(self, repository_id: UUID, operation: Callable[[], Awaitable[None]]) -> None:
+    async def _run(
+        self,
+        repository_id: UUID,
+        operation: Callable[[], Awaitable[None]],
+        gate: asyncio.Semaphore | None,
+        should_run: Callable[[], Awaitable[bool]] | None,
+    ) -> None:
+        if gate is not None:
+            async with gate:
+                if should_run is not None and not await should_run():
+                    return
+                await self._run_locked(repository_id, operation)
+            return
+        await self._run_locked(repository_id, operation)
+
+    async def _run_locked(
+        self, repository_id: UUID, operation: Callable[[], Awaitable[None]]
+    ) -> None:
         lock = self._locks.setdefault(repository_id, asyncio.Lock())
         async with lock:
             await operation()
@@ -169,6 +194,8 @@ class RepositoryService:
 
     async def start_sync(self, repository_id: UUID) -> RepositoryModel:
         model = await self.get(repository_id)
+        if await self.store.has_active_generation(repository_id):
+            raise RepositoryBusyError("Viewer生成中は同期できません。")
         if model.status not in {RepositoryStatus.READY.value, RepositoryStatus.FAILED.value}:
             raise RepositoryBusyError("Repositoryの処理はすでに実行中です。")
         has_workspace = self.workspace.is_valid_repository(model.workspace_key)
@@ -210,13 +237,16 @@ class RepositoryService:
         model = await self.get(repository_id)
         self._ensure_deletable(model)
         async with self.runner.exclusive(repository_id):
-            model = await self.get(repository_id)
-            self._ensure_deletable(model)
             try:
-                if await self.store.has_related_data(repository_id):
-                    raise RepositoryInUseError("関連するViewerなどを先に削除してください。")
+                model, conflict = await self.store.prepare_delete(repository_id)
             except SQLAlchemyError as exc:
                 raise DatabaseUnavailableError from exc
+            if conflict == "not_found" or model is None:
+                raise RepositoryNotFoundError("Repositoryが見つかりません。")
+            if conflict == "busy":
+                raise RepositoryBusyError("Repositoryの処理中は削除できません。")
+            if conflict == "in_use":
+                raise RepositoryInUseError("関連するViewerを先に削除してください。")
 
             self._log_delete("repository.workspace_delete_started", repository_id, trace_id)
             try:
