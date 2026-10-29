@@ -1,17 +1,21 @@
 # RepoSpec Viewer Phase 2 詳細設計の引き継ぎ
 
-- 更新日: 2026-10-25
+- 更新日: 2026-10-30
 - 引き継ぎ先: Phase 2の設計を扱う新しいチャット
 - 作業対象: Phase 2「Viewer生成と保存」の詳細設計の確認・補完
 - 実装: この引き継ぎでは行わない
 
-この文書は、別のチャットでPhase 2の設計または実装作業をすぐ再開するための引き継ぎ資料である。現在の仕様は[Phase 2詳細設計書](./phase-2-detailed-design.md) v1.2を参照する。
+この文書は、別のチャットでPhase 2の設計または実装作業をすぐ再開するための引き継ぎ資料である。現在の仕様は[Phase 2詳細設計書](./phase-2-detailed-design.md) v1.3を参照する。次の作業は同設計書21章の安全設定・表示・事前確認scriptの実装修正である。
 
 ## 1. 現在の状態
 
 Phase 2詳細設計書v1.0はPull Request #16、v1.1はPull Request #22で`main`へマージ済みである。v1.2では、Codex CLI `0.164.0`の実装に合わせ、存在しない`sandboxPolicy.readOnly.access`を前提としたgateをPermission Profile方式へ変更した。Viewer構成、block catalog、状態遷移、Git refなどv1.1の設計方針は変更していない。
 
 Phase 0のChat進捗表示、画面移動中のSession維持、Sessionエラー復帰を含むPull Request #20は、2026-10-21時点で`main`へマージ済みである。Phase 2の設計は最新の`main`を前提とする。
+
+Phase 2実装はPR #24でmainへマージ済みであり、Fake Codex + SQLiteで生成・検証・保存を確認した。実Codexの事前確認は`config/read`、`configRequirements/read`の応答後、`plugin/list`でtimeoutした。動作gateは未実行であり、不合格と読み替えない。
+
+v1.3は既存App ServerとPermission Profileを維持し、起動時の外部機能無効化、cwd別設定、ThreadのProfile/root・feature/MCP runtime検査へ改訂した。非認証fixtureでの限定確認はできたが、この改訂の実装修正と認証付き動作gateは未完了である。`GENERATION_ENABLED=false`を維持する。
 
 ## 2. これまでの話し合いで決めた方針
 
@@ -112,13 +116,15 @@ Viewer内Q&A、ConversationとMessageの永続化、Source Code Viewer、共有U
 7. Viewer本文containerのCSS Container Queryにより、Phase 3のQ&A pane追加時もrenderer HTMLを変更せず1列化できるようにした。
 8. SSEと5秒間隔のREST確認を併用し、in-memory buffer喪失後の復帰を定義した。
 
-## 6. 実装開始前の注意点
+## 6. 次の実装修正の注意点
 
 ローカルにはChatGPTデスクトップアプリ同梱の`0.154.0-alpha.6.2`と、`/Users/futaw/.local/bin/codex`の`0.164.0`が併存する。Phase 2 Generationは後者を`CODEX_EXECUTABLE`で明示し、前者へfallbackしない。
 
 `0.164.0`で生成したApp Server schemaにも`readOnly.access.readableRoots`は存在しない。v1.2はこれをCLI更新待ちとせず、`thread/start.params.config`でJob固有のPermission Profileを渡す。Profileはfilesystem全体をdenyとし、必要最小限のruntime pathと対象Repositoryのみread、networkはdisabledとする。旧sandbox設定との併用、外部toolの残留、設定の不受理はすべてfail closedとする。
 
-Protocol/config gateのうち、CLI version、schema、Permission Profileの起動設定の受理は2026-10-25に確認済みである。`config/read`と`configRequirements/read`の確認、および実App Serverでの読み取り範囲、書き込み拒否、network拒否、外部tool無効化、`outputSchema`は実装の最初にharnessで確認する。詳細はPhase 2詳細設計書14.1に定めた。
+CLI 0.164.0の生成型定義で`plugin/list`の現在の引数は有効だが、`disabledPluginIds`は保存用でPlugin機能をfilterしないと確認した。一覧取得は安全性の必須経路から除き、起動feature無効化とThread runtimeの検査で代替する。取得失敗を空一覧へ変換しない。timeoutの内部原因は未特定である。
+
+起動・Threadの限定確認と、その証拠の限界は詳細設計14.2、採用設定と確認順序は14.3〜14.5、改修後harnessの合否基準と有効化条件は14.6に従う。実装済み、Fakeで検証済み、実Codexで検証済みを分け、実動作の読み取り範囲・非変更・command network拒否・実生成を完了扱いしない。変更対象ファイルと実装後の手動確認は21章を正本とする。
 
 ## 7. 参照順序
 
@@ -134,7 +140,7 @@ Protocol/config gateのうち、CLI version、schema、Permission Profileの起�
 
 画面モックは表示例であり、本文を固定レイアウトにする根拠として扱わない。
 
-## 8. 今回の精査で実施した作業手順
+## 8. 2026-10-22の精査で実施した作業手順（過去の記録）
 
 1. 作業ツリーと現在のブランチを確認した。
 2. `main`を`origin/main`の最新状態へ更新した。

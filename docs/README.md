@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.7
-- 更新日: 2026-10-20
+- 文書バージョン: v0.8
+- 更新日: 2026-10-30
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -84,6 +84,10 @@ Phase 0 Chatは登録済みRepositoryではなく、環境設定の`TEST_CHAT_WO
 - 構造化されたViewer Documentの生成
 - 検証済みHTMLの生成と保存
 - Viewer一覧・詳細・削除・テーマ変更・再生成
+
+Phase 2の実装はPR #24でmainへマージ済みであり、Fake Codex + SQLiteで生成・検証・保存を確認した。実Codexでは設定APIの応答後に`plugin/list`がtimeoutし、権限制限の動作gateは未実行である。`GENERATION_ENABLED`の既定値は`false`を維持する。
+
+[Phase 2詳細設計v1.3](./phase-2-detailed-design.md)では、既存のApp ServerとJob固有Permission Profileを維持し、起動時の外部機能無効化、対象cwdの設定、ThreadのProfile・root・feature/MCP状態で安全性を確認する方式へ改訂した。非認証fixtureで起動とThreadの限定確認はできたが、この改訂のアプリ実装修正、認証付きTurnのread-only/network制限、実生成は未検証である。実装済み、Fakeで検証済み、実Codexで検証済みを分け、全gate合格後だけ生成を有効化する。
 
 ### Phase 3: Viewer内Q&A
 
