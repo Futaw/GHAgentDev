@@ -1,8 +1,8 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
-- 文書バージョン: v1.2
-- 更新日: 2026-10-25
-- ステータス: 詳細設計確定・実装前
+- 文書バージョン: v1.3
+- 更新日: 2026-10-30
+- ステータス: 安全設定の設計改訂・実装修正待ち・実Codex動作gate未完了
 - 対象Phase: Phase 2「Viewer生成と保存」
 
 本文書は、[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)をPhase 2の実装へ落とし込む詳細設計書である。上位仕様と本文書が矛盾する場合は、Phase 2の範囲に限り本文書を優先する。
@@ -51,6 +51,19 @@ Phase 2完了時には、次の操作がWeb画面から行える。
 
 Viewer内Q&AとSource Code ViewerはPhase 3で実装する。Phase 2のViewer画面には、後続機能を前提とした領域を常時表示しない。
 
+### 1.4 現在の到達点（2026-10-30）
+
+Phase 2の実装はPR #24でmainへマージ済みである。今回の変更対象は設計文書であり、以下の安全設定改訂をアプリへ実装する作業は次のPRへ分ける。
+
+| 対象 | 実装済み | Fakeで検証済み | 実Codexで検証済み |
+|---|---|---|---|
+| Job、ViewerDocument、ソース参照検証、HTML生成・保存、画面 | Yes | Fake Codex + SQLiteで生成から保存まで成功 | 認証付き生成から保存までは未確認 |
+| v1.2のPlugin列挙・Thread config・承認拒否 | Yes | 正常系・拒否経路を検証 | 設定API応答後、`plugin/list`でtimeout。動作gate未実行 |
+| v1.3の起動overrideとThread runtime検査 | No（次回修正） | アプリとの結合testは未実施 | 非認証fixtureで起動・Thread・設定上書き・MCP canary未起動を限定確認（14.2） |
+| read-only範囲、非変更、command network拒否、実生成 | 一部検査harnessあり。14.6へ改修が必要 | FakeはOS制限の証拠にしない | 未検証。`GENERATION_ENABLED=false`を維持 |
+
+前回実装時の記録はBackend 52 tests、Frontend 23 tests、lint/build、SQLite migration成功である。今回の文書変更でこれらを再実行済みとは扱わない。実PostgreSQL適用、各画面幅の実browser目視も未完了であり、Phase 2全体を完了扱いしない。
+
 ## 2. 現在の設計からの変更点
 
 既存の概要設計は、`ViewerDocument`を正本とし、検証済みデータからHTMLを生成する方針までを定めている。Phase 2では、未定義だった本文の組み立て方を次のように具体化する。
@@ -66,7 +79,8 @@ Viewer内Q&AとSource Code ViewerはPhase 3で実装する。Phase 2のViewer画
 | Theme | 見た目を切り替える | 配色・書体の`Theme`と余白・文字量の`Density`を分離する |
 | 画面モック | Viewer例を1種類掲載 | 特定の生成結果例として扱い、固定レイアウトの仕様にはしない |
 | テスト | ViewerDocumentとXSSの単体検証 | blockの組み合わせ、上限値、レスポンシブ、Theme/Densityも検証する |
-| Codexの読み取り範囲 | `sandboxPolicy.readOnly.access`で制限する想定 | Codex CLI `0.164.0`のPermission ProfileをThread設定として渡し、Repositoryと必要最小限のruntime pathだけを読み取り可にする |
+| Codexの読み取り範囲 | `sandboxPolicy.readOnly.access`で制限する想定 | Job固有Permission Profileを維持し、ThreadのProfile・runtime root・実動作を検証する |
+| 外部tool | v1.2はPlugin一覧と`disabledPluginIds`へ依存 | 起動feature無効化、対象cwdの全設定、Threadのfeature/MCP状態を確認し、一覧取得を必須にしない |
 
 次の方針は変更しない。
 
@@ -851,7 +865,7 @@ request hashは、operation、Repository ID、対象Viewer IDまたは再試行�
 
 ### 13.1 開始処理
 
-1. 入力と選択肢を検証する。
+1. 入力と選択肢、生成flag、接続、起動baselineを確認する。再送は12.9、実行前の安全確認は14.4に従う。
 2. DB transactionでRepository行を`SELECT ... FOR UPDATE`し、`ready`であることを確認する。
 3. 同じtransactionでactive Generation Jobがないことを確認する。
 4. `latest_commit_sha`をJobへ複製し、`queued`のJobをcommitする。
@@ -872,7 +886,7 @@ Repository削除は既存のprocess内Lockを取得した後、Repository行をl
 2. Jobが`queued`のままであることを確認し、Repository単位Lockを取得する。
 3. Repository状態、Workspace、JobのCommit SHAを再確認し、`queued -> running`を確定する。
 4. 一時Git refを作成し、CommitをGeneration中に保持する。
-5. Codex ThreadとTurnを開始する。
+5. 対象cwdの有効設定を検査し、Threadを作成する。14.4のruntime検査合格後だけTurnを開始する。
 6. 最終agent messageを蓄積する。
 7. Turnの`completed`を確認する。
 8. ViewerDocumentをparseし、構造とSourceReferenceを検証する。
@@ -907,110 +921,245 @@ ThemeとDensityの変更は`content_revision`を更新しない。このため�
 
 ### 14.1 ThreadとTurn
 
-Generationごとにephemeral Threadを1件作る。Generation ThreadをPhase 3のQ&Aへ流用しない。
+採用方式は、既存のstdio App ServerとJob固有Permission Profileを維持し、**外部機能をプロセス起動時に無効化し、対象cwdの設定とThreadの実行状態を確認してからTurnを送る**方式とする。`plugin/list`と`disabledPluginIds`を安全性の根拠にするv1.2の設計を置き換える。別実行基盤、SDKへの移行、常設の別App Server、認証情報の複製は追加しない。
 
-Codex CLI `0.164.0`では、App Serverの`SandboxPolicy.readOnly`に読み取りrootを指定できない。一方、同versionはPermission Profileによるfilesystemとnetworkの制限をサポートする。そのため、Generationでは旧`SandboxPolicy`を使用せず、`thread/start.params.config`にGeneration専用Permission Profileを渡す。
+| 単位 | 責務 |
+|---|---|
+| Process | 固定CLIをstrict config・stdioで起動し、外部機能を無効化する。認証、request routing、承認拒否、接続世代の管理を担う |
+| Thread | Jobごとにephemeralで新規作成する。Repositoryのreal path、一意Permission Profile、MCP無効化、アプリ管理の指示を固定し、応答とruntime inventoryを照合する |
+| Turn | 検証済みThreadへ生成promptと`outputSchema`を渡す。修正Turnも同じ制限で最大1回とし、権限・cwd・tool構成を変更しない |
+| Backend | Job・Repository排他、設定確認、追加権限拒否、ViewerDocument・SourceReference・HTML検証、保存可否を決める |
 
-App Serverは`--strict-config`付きで起動する。Profile名は`repospec_generation_<job-id>`形式でJobごとに一意にし、下位のconfig layerに同名Profileが存在して追加rootなどがmergeされることを防ぐ。`job-id`はアプリが発行したUUIDからhyphenを除いた値を使い、ユーザー入力をProfile名に含めない。
+Phase 0の最小ChatとGenerationは既存の1プロセスを共有する。このため起動時の外部機能無効化はChatにも適用される。Chatの認証、read-only会話、SSE、中止を回帰確認する。Phase 0の旧sandbox指定はPhase 0 Threadだけの契約であり、Generation Thread/Turnへ流用しない。
 
-`thread/start`には次を設定する。`<profile-name>`のkeyは上記の生成値である。
+Generation ThreadはPhase 3のQ&Aへ流用しない。
+
+### 14.2 確認結果とCLI 0.164.0の契約
+
+#### 14.2.1 既存環境の停止位置
+
+確認対象の実行ファイルは、存在確認済みの`/Users/futaw/.local/bin/codex`、versionは`codex-cli 0.164.0`である。以前の実行ファイル不存在エラーとは分けて扱う。
+
+利用者が実施した次の確認は、`config/read`、`configRequirements/read`の応答後、`plugin/list`の応答待ちで120秒のtimeoutとなった。
+
+```bash
+python -m backend.scripts.verify_generation_sandbox \
+  --codex /Users/futaw/.local/bin/codex \
+  --timeout 120
+```
+
+| 記録項目 | 結果 |
+|---|---|
+| OS | `macOS-26.6.2-arm64-arm-64bit` |
+| `failed_check` | `plugin/list` |
+| `failure` / detail | `CodexTimeoutError` / `Codex request timed out` |
+| `protocol_config_gate` | `false`。設定確認が完了していない |
+| `behavior_gate` | `false`。Thread/Turnへ到達せず、**未実行** |
+| stable ThreadStartParams + TurnStartParamsのSHA-256 | `45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda` |
+
+この結果は権限制限の動作試験不合格を意味しない。また、2つの設定APIの応答取得は、Profile適用や全toolの無効化まで検証できたことを意味しない。
+
+#### 14.2.2 ローカルCLIから確認した契約
+
+2026-10-30に同じ実行ファイルで、次を専用の一時directoryへ生成して確認した。生成物はversion固有の契約として扱い、最新版ドキュメントだけでfieldの存在を判断しない。
+
+```bash
+/Users/futaw/.local/bin/codex --version
+/Users/futaw/.local/bin/codex app-server --help
+/Users/futaw/.local/bin/codex features list
+/Users/futaw/.local/bin/codex app-server generate-json-schema --out <temporary-directory>/schema
+/Users/futaw/.local/bin/codex app-server generate-ts --out <temporary-directory>/types
+/Users/futaw/.local/bin/codex app-server generate-json-schema --experimental --out <temporary-directory>/schema-experimental
+/Users/futaw/.local/bin/codex app-server generate-ts --experimental --out <temporary-directory>/types-experimental
+```
+
+| 根拠 | 確認できた事実と設計への反映 |
+|---|---|
+| `v2/PluginListParams` | `forceRefetch?: boolean`、`marketplaceKinds?: [...]`、`cwds?: absolute path[]`。`local`は有効なkindである。現在の`{"forceRefetch":false,"marketplaceKinds":["local"]}`は契約に合う。cwd省略時はhome側と公式curated marketplaceを考慮し、対象Repositoryの完全なinventoryではない |
+| 同Paramsのコメント | `forceRefetch`はremote catalogの再取得要求を表す。`false`や`local`だけから、内部のremote処理や待ち時間が皆無とは判断できない |
+| `v2/PluginListResponse` | `marketplaces`、`marketplaceLoadErrors`、`featuredPluginIds`。Plugin IDは`marketplaces[].plugins[].id`。旧形式の`data / plugins / pluginId`への互換fallbackは現versionの本番検証には使わない |
+| `v2/ThreadStartResponse` | `disabledPluginIds`のコメントは`Saved list of disabled plugin IDs. Does not yet filter plugin capabilities.`。一覧を取得して全IDを渡すだけでは、機能無効化を保証できない |
+| `v2/ConfigReadParams` | `cwd`で対象Repositoryのproject layerを解決できる。現在のcwd未指定の検査はJob用設定の確認として不足する |
+| `v2/ConfigReadResponse` | `config / origins / layers`を返す。diskのlayerを解決した設定であり、`thread/start.config`の反映結果を読むAPIとして代用しない |
+| `v2/ConfigRequirements` | `allowedApprovalPolicies`、`allowedPermissionProfiles`、`defaultPermissions`、`allowedWebSearchModes`、`featureRequirements`等が存在する。`repr()`の部分文字列検索ではなく、field単位で制約を評価する |
+| experimental版`ThreadStartResponse` | `activePermissionProfile: {id, extends}`と`runtimeWorkspaceRoots`がある。`initialize.capabilities.experimentalApi=true`で応答を確認し、採用方式の実行前検査に使用する |
+| `v2/ExperimentalFeatureListParams` | `threadId`付きでThreadの更新済み設定に基づくfeature状態を取得できる。`data / nextCursor`を最後まで取得する |
+| `v2/ListMcpServerStatusParams` / `McpServerStatus` | `threadId`付きでThreadのMCP状態を確認できる。`runtimeStatus="disabled"`と空のtools/resources等を確認する。単なる未接続・空tool一覧では無効化の証明にならない |
+| `SandboxPolicy.readOnly` | `access / includePlatformDefaults / readableRoots`は存在しない。Generationに旧SandboxPolicyを追加する変更はしない |
+| CLI help / `features list` | `--strict-config`、`--disable <feature>`、`-c key=value`が存在する。14.3で列挙したfeature名は同versionに存在し、非機密fixtureでのstrict起動とThread状態を確認した |
+| 起動設定の事前validation | 起動overrideとfixture Profileを`--print-startup-config`で受理した。ただし`--listen`との併用はCLIがexit 2で拒否するため、validation時はtransport引数を外す。出力はversionとrequirementsであり、全有効configのdumpではない |
+
+stable schemaのhashは利用者の記録と一致した。experimental版の同じ2ファイルを同順で連結したSHA-256は`22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea`である。追加で使うResponse、feature、MCP関連schemaも次回harnessの記録対象にする。
+
+[公式App Server資料](https://learn.chatgpt.com/docs/app-server)は`plugin/list`を開発中とし、本番clientからの使用を推奨していない。[設定の優先順位](https://learn.chatgpt.com/docs/config-file/config-basic#configuration-precedence)ではCLI overrideがproject・profile・user設定より優先される。一方、managed requirementsは設定とは別の制約である。`--profile`もbase user configへ重ねる仕組みであり、専用profile fileだけで設定・認証を隔離できるとは扱わない。
+
+#### 14.2.3 今回の非機密fixtureによる限定確認
+
+既存のRepository、`.env`、user config、認証情報を変更せず、一時`CODEX_HOME`とfixtureだけでJSONLの要求・応答を確認した。認証情報はコピーしておらず、モデルのTurnは実行していない。
+
+| 試験 | 実Codexで確認した範囲 |
+|---|---|
+| 空の専用home、従来の`plugin/list`引数 | 正常応答、marketplace 0件。元の120秒timeoutはこの条件では再現しなかった |
+| 起動時feature無効化、Job固有Profile | strict起動とThread作成に成功。`activePermissionProfile.id`一致、`extends=null`、runtime rootがfixture1件、`approvalPolicy=never`を確認 |
+| trustedなfixtureのproject configでPlugin/App/browser/hooks/multi-agentを再有効化 | 起動overrideが優先され、14.3の全featureがThread上で`false`となった |
+| 同fixtureにenabledなstandalone MCP canaryを追加し、Thread configでそのnameを無効化 | statusは`disabled`、tools/resources/resourceTemplatesは空。起動するとmarkerを作る非機密canaryは実行されなかった |
+| fixtureに`AGENTS.md`を置き、`project_doc_max_bytes=0` | Threadの`instructionSources`は空だった |
+
+以上は起動・設定・Thread確認の成立性を示す。実ユーザーの認証・全設定を引き継いだTurn、OSによる読み取り/変更/network拒否、`:minimal`の実際の読み取り範囲、Viewer保存までの成功は未検証である。Thread作成時にはprovider接続のDNS等のエラーも観測したが、元の`plugin/list`停止原因との因果関係は確認していない。
+
+現時点で確定できるのは要求形式が有効であることまでである。CLI内部のlock、remote catalog、ローカルPlugin、認証・設定の組み合わせ、client readerの滞留などは切り分け候補であり、原因として断定しない。
+
+### 14.3 起動設定と認証情報
+
+既存の`CodexAppServer`を固定の引数配列で起動する。実行ファイルは`CODEX_EXECUTABLE=/Users/futaw/.local/bin/codex`とし、PATHやアプリ同梱CLIへfallbackしない。processのcwdはアプリが管理する固定directoryとし、Repositoryへ切り替えない。以下は次の実装修正で組み立てる起動契約であり、今回の文書更新ではアプリへ適用しない。
+
+```text
+/Users/futaw/.local/bin/codex app-server --strict-config --listen stdio://
+  --disable plugins --disable remote_plugin --disable apps
+  --disable browser_use --disable browser_use_external --disable browser_use_full_cdp_access
+  --disable computer_use --disable in_app_browser
+  --disable hooks --disable multi_agent --disable code_mode
+  --disable image_generation --disable tool_suggest --disable skill_mcp_dependency_install
+  --disable skill_search --disable workspace_dependencies
+  --disable remote_control --disable memories --disable request_permissions_tool
+  --disable shell_snapshot
+  -c web_search="disabled"
+  -c project_doc_max_bytes=0
+  -c allow_login_shell=false
+  -c shell_environment_policy.inherit="none"
+  -c shell_environment_policy.ignore_default_excludes=false
+  -c shell_environment_policy.set={PATH="/usr/bin:/bin:/usr/sbin:/sbin"}
+```
+
+上記は引数の一覧であり、そのまま複数行のshell commandとして実行する例ではない。TOML文字列の引用符を含め、各`key=value`を1引数として渡す。
+
+Plugin本体とremote catalog、App、browser/computer、代替tool経路、hook・自動導入・shell snapshotを起動時に止める。commandのnetwork禁止はPermission Profileが担い、外部tool無効化とは別に検証する。モデルAPIへのApp Server自身の通信は必要であり、これをsandbox内commandの通信許可へ広げない。
+
+認証は既存のApp Server管理を継続する。通常運用ではユーザーの`CODEX_HOME`とCodex管理のcredential storeを使い、バックエンドはtokenを取り出さず、別homeへのコピー、auth fileのsymlink、DBへの保存を行わない。専用homeは今回の非認証fixtureのためだけに使用した。設定APIから認証値をログへ出さず、未認証は既存の`AUTH_REQUIRED`経路へ返す。ログアウト・account変更時はGenerationの検査結果を失効させる。
+
+`inherit=none`はCodexが起動するcommandの環境に適用し、App Server自身の認証処理とは分ける。下位layerの`set`やfilterはmergeされ得るため、指定したtableで全置換されたとは扱わない。各Jobで有効なshell環境設定を検査し、PATH以外の`set`、秘密値の注入、未評価のinclude/exclude・旧形式の組み合わせがあればfail closedとする。user設定を消して解決しない。必要なruntime追加は非機密の固定値だけをレビューし、動作gateを再実行する。[shell環境の公式契約](https://learn.chatgpt.com/docs/config-file/config-advanced#shell-environment-policy)も参照する。
+
+### 14.4 Job開始前の確認と権限適用
+
+#### 14.4.1 起動時
+
+1. CLI version、通常版・experimental版schemaの必要field、起動引数を照合する。未知featureや非対応fieldがあればGenerationを無効とする。
+2. 同じ設定overrideを`--strict-config --print-startup-config`へ渡し、config受理を確認する。CLI 0.164.0では`--listen`と併用できないため、このvalidationだけは`--listen stdio://`を外す。このcommandの成功だけでruntimeの安全性合格とはしない。
+3. stdioで起動し、reader/stderr taskを開始して`initialize`（`experimentalApi=true`）/`initialized`を送る。Phase 0もこの接続を共用するが、実験fieldを無制限に公開しない。
+4. `config/read {includeLayers:true}`、`configRequirements/read {}`、`account/read {refreshToken:false}`を順に取得する。固定feature、web search、shell環境、旧sandboxの有無とmanaged制約を確認する。
+5. feature flagが`false`なら生成要求を受け付けない。`true`でも、このbaseline確認とJob固有の確認を省略しない。
+
+`plugin/list`は起動とJob開始の必須要求から外す。取得不能を空一覧へ変換するのではなく、**全Plugin機能を無効化し、そのruntime状態を確認する別の安全条件**へ置き換える。列挙成功や`disabledPluginIds`の保存状態は合否に使わない。`config/value/write`、`config/batchWrite`、Plugin install/reconcileやMCP reloadは実行しない。
+
+#### 14.4.2 Job開始時
+
+1. 生成受付時は`GENERATION_ENABLED`、App Server接続、起動baselineの順に確認する。失敗は18章のProblem Detailsとし、Jobを新規作成しない。既存Jobの同一key再送は新たな実行とは分け、12.9の規則を維持する。
+2. 既存のDB予約・semaphore・Repository Lockを取得後、Repository状態とCommitを再確認する。`WorkspaceResolver`がRepository IDから解決したreal pathだけを使う。
+3. **毎Job**、`config/read {includeLayers:true,cwd:<repository-real-path>}`、`configRequirements/read {}`を順に取得する。process単位の`_security`をJob間・再接続後へ再利用しない。
+4. 有効configと有効なlayerを検査する。14.3のfeatureと固定値、standalone MCPの全name、個別App設定、旧sandbox、profileの追加root/extends、shell環境、指示の注入元を確認する。欠落・型不正・未知の安全関連設定は失敗とする。非空の継承`instructions / developer_instructions`や追加の指示file等を無審査で受け入れない。
+5. requirementsを同versionのschemaで評価する。`never`や`disabled`がallowlistから除外される、featureが`true`に固定される、Job固有Profileが許可されない、別defaultを強制される、評価できないmanaged制約がある場合は停止する。`requirements=null`は「managed制約なし」であり、API失敗やfield欠落とは区別する。
+6. JobのUUIDから`repospec_generation_<hyphenなしUUID>`を作る。同名Profileが既存layerにあれば衝突として停止し、下位設定がmergeされないようにする。下記のThread configをアプリのallowlistから組み立てる。取得configをそのまま転送しない。
+7. `thread/start`に`cwd`、`ephemeral=true`、`approvalPolicy=never`と下記config、アプリ管理の`developerInstructions`を送る。Generationでは`sandbox / sandboxPolicy / permissions`、追加workspace root、dynamicTools、selectedCapabilityRoots、外部environmentを指定しない。
+8. Thread応答で`cwd`一致、`approvalPolicy=never`、`activePermissionProfile.id`一致・`extends=null`、`runtimeWorkspaceRoots`が対象real pathだけ、`instructionSources=[]`を必須とする。legacyな`sandbox.type=readOnly, networkAccess=false`だけで読み取りroot制限済みとは判断しない。
+9. `experimentalFeature/list {threadId,...}`を全page取得し、14.3で無効化した全featureが存在して`enabled=false`であることを確認する。欠落、重複、不明な状態、timeoutは失敗とする。
+10. `mcpServerStatus/list {threadId,...}`を全page取得する。各既知serverが`runtimeStatus=disabled`、`tools={}`、`resources=[]`、`resourceTemplates=[]`で、未知serverやPlugin由来serverがないことを確認する。0件は有効configにもserverがない場合だけ許可する。`failed / notStarted / null`を無効化成功に含めない。
+11. 同じcwdで設定・requirementsを再取得し、安全関連値とlayer versionが検査開始時から変わっていないことを確認する。変更があればThreadを使用せず失敗とする。これらのAPIはThread configの読戻しではないため、送信config・Thread応答・runtime feature/MCPの照合も併せて必要である。
+12. 全確認成功後だけ`turn/start`を送る。修正Turnの前にも接続世代、設定、feature/MCPを再確認する。別Job用Threadのresume/forkや権限overrideは行わない。
 
 ```json
 {
-  "cwd": "/managed-workspaces/repositories/<repository-id>",
-  "ephemeral": true,
-  "approvalPolicy": "never",
-  "config": {
-    "default_permissions": "<profile-name>",
-    "permissions": {
-      "<profile-name>": {
-        "description": "RepoSpec Viewer Generation read-only access",
-        "filesystem": {
-          ":root": "deny",
-          ":minimal": "read",
-          ":workspace_roots": {
-            ".": "read"
-          }
-        },
-        "network": {
-          "enabled": false
-        }
-      }
-    },
-    "web_search": "disabled"
-  }
+  "default_permissions": "<job-profile>",
+  "permissions": {
+    "<job-profile>": {
+      "description": "RepoSpec Viewer Generation read-only access",
+      "filesystem": {
+        ":root": "deny",
+        ":minimal": "read",
+        ":workspace_roots": {".": "read"}
+      },
+      "network": {"enabled": false}
+    }
+  },
+  "web_search": "disabled",
+  "project_doc_max_bytes": 0,
+  "apps": {"_default": {"enabled": false}},
+  "mcp_servers": {"<each-effective-server-name>": {"enabled": false}}
 }
 ```
 
-`turn/start`には次を設定する。`sandboxPolicy`は送信しない。
+`<each-effective-server-name>`は説明用であり、実際には有効configにある全nameを列挙する。存在する個別Appの`enabled=false`も加える。MCPが0件の場合だけ空objectを使う。Appの個別設定が`_default`を上書きし得るため、globalな`features.apps=false`とThreadのfeature確認を必須とする。
 
-```json
-{
-  "threadId": "<codex-thread-id>",
-  "input": [{"type": "text", "text": "<generation prompt>"}],
-  "approvalPolicy": "never",
-  "disabledPluginIds": ["<installed-plugin-id>", "..."],
-  "outputSchema": {"type": "object"}
-}
-```
+`turn/start.params`は次に限定し、修正Turnでも同じ項目を送る。
 
-`cwd`は`WorkspaceResolver`がRepository IDから解決したreal pathだけを使う。このpathがThreadのruntime workspace rootとなり、`:workspace_roots`の`.`に対する`read`が適用される。ユーザー入力、Repository名、URLをpathへ連結しない。`:minimal`はCLIと共通developer toolの実行に必要なplatform/runtime pathの読み取りに限定し、先行設計の`includePlatformDefaults`に対応する。Repositoryの兄弟directory、ユーザーdocument、認証情報pathは読み取り許可に含めない。
+| Field | 値 |
+|---|---|
+| `threadId` | runtime検査に合格した当該JobのThread ID |
+| `input` | `[{"type":"text","text":"<生成または修正prompt>"}]` |
+| `approvalPolicy` | `never` |
+| `outputSchema` | 既存の`viewer_document_json_schema()`が返す完全なViewerDocument schema |
 
-Permission Profileと旧`sandbox_mode`、`sandbox_workspace_write`、CLIの`--sandbox`、Thread/Turnの`sandbox`・`sandboxPolicy`は併用しない。App Server起動後に`config/read` `includeLayers: true`で有効configを調べ、いずれかの旧設定が1つでもあればGenerationを`CODEX_SANDBOX_UNSUPPORTED`で無効化する。Permission Profileがmanaged requirementsにより拒否された場合、未知のconfig fieldがある場合、または起動時・Thread作成時にwarningやerrorとなった場合も広い権限へfallbackしない。
+`disabledPluginIds`は送信しない。Turnからの`cwd / sandboxPolicy / permissions / model / environment`等のoverrideも許可しない。
 
-GenerationではRepository調査とStructured Output以外の外部toolを使わない。`web_search`は`disabled`に固定する。`plugin/list`で取得した全Plugin IDを`disabledPluginIds`へ渡す。Pluginが0件の場合は空配列を渡す。`config/read`で検出したAppは`apps._default.enabled = false`に加え、各Appの`enabled = false`をThread configでoverrideする。standalone MCP serverも各`mcp_servers.<name>.enabled = false`をoverrideする。検出または無効化を確認できない場合はGenerationを開始しない。browser、computer use、アプリ連携をGenerationの入力とtool inventoryに含めない。
+旧`sandbox_mode / sandbox_workspace_write`が有効なlayerで非nullに明示設定されている場合はProfileと併用せず停止する。APIの固定fieldが`null`で返るだけの場合とは区別する。`:minimal`は同CLIのplatform/runtime集合であり、以前想定した`includePlatformDefaults`と同一とは保証しない。認証path・利用者document・兄弟Repositoryの読み取りを追加許可せず、実動作で制限を確認する。[Permission Profileの優先規則](https://learn.chatgpt.com/docs/permissions)では、より具体的なread/writeが広いdenyを上書きできるため、Profile名だけの一致確認では不十分である。
 
-実装開始条件はversion番号だけではなく、使用するCLIで次のprotocol/config gateと動作gateを両方満たすこととする。
+この方式が現CLIで成立する条件は、起動overrideの受理、必要なexperimental応答、Thread単位feature/MCP確認、JobのProfileとrootの一致、managed制約との両立、および14.6の動作gate合格である。いずれかを取得・検証できなければGenerationを開始しない。
 
-#### Protocol/config gate
+### 14.5 診断ログ、timeout、接続断
 
-1. `codex --version`の結果を確認記録へ残す。
-2. `codex app-server generate-json-schema --out <temporary-directory>`を実行する。
-3. `v2/ThreadStartParams.json`に`cwd`、`ephemeral`、`approvalPolicy`、`config`があり、`config`がobjectを受理することを確認する。
-4. `v2/TurnStartParams.json`に`threadId`、`input`、`approvalPolicy`、`disabledPluginIds`、`outputSchema`があることを確認する。
-5. 本節のProfileと`web_search = "disabled"`を`codex app-server --strict-config --print-startup-config`に渡し、exit code 0で受理されることを確認する。
-6. `config/read` `includeLayers: true`と`configRequirements/read`を使い、旧sandbox設定がないこと、一意Profileがrequirementsで禁止されていないこと、外部toolを無効化できることを確認する。
+通常ログはtrace ID、Job ID、接続世代、request ID、method、送信完了時刻、応答時刻・経過時間、結果分類を記録する。`CodexTimeoutError.method`を失わず、設定確認のどの段階が止まったか分かるようにする。加えてreaderの最終受信時刻、pending件数、通知handlerの開始/終了と処理時間、process exit code、EOF、不正JSON、遅延/未知response IDを記録する。stdout readerは応答を処理し続け、通知handlerから同じreaderの応答を同期的に待つ構造にしない。
 
-#### 動作gate
+configは安全関連のfield名と判定結果、layerの種別・version、Profile名、一致/不一致、件数だけを記録する。絶対pathは`repository / sibling / outside / codex_home`等の役割へ置換する。token、auth response、prompt、command本文、設定全文、Plugin/MCPのURL・header・env、stderr全文を出さない。stderrは許可したerror分類・targetと時刻に正規化し、正規表現によるtoken置換だけに依存しない。
 
-1. 管理Workspace配下に読み取り許可fixture、その兄弟directoryに機密情報を含まない拒否確認用fixture、管理Workspace外に認証情報でないsentinelを作る。
-2. 実Codex App Serverへ`initialize / initialized / config/read / configRequirements/read / plugin/list / thread/start / turn/start`を送り、本節のPermission Profileと`outputSchema`を指定する。
-3. 許可fixtureのみを読み取れ、兄弟directoryとWorkspace外sentinelは読み取れないことを確認する。
-4. 許可fixtureに対して既存fileの更新、新規fileの作成、削除、rename、`.git`の更新がすべて拒否され、実行後のfixture hashが不変であることを確認する。
-5. loopbackとpublic endpointの両方へのcommand起点network accessが失敗し、web search、Plugin、App、MCP、browserがTurnで利用できないことを確認する。
-6. 追加権限要求がgatewayに拒否され、TurnとJobが成功扱いにならないことを確認する。
-7. `outputSchema`に適合したTurnが完了し、制限違反を含むTurnはViewerを保存しないことを確認する。
-8. この確認をCLI version、OS、生成schemaのhashとともに結合testの実行記録へ残す。fake app-serverだけの成功では動作gateを満たしたことにしない。
+`plugin/list`を追加調査するときは生成と切り離した診断モードで次の順に行う。診断の失敗・成功は採用方式のgateへ代入しない。
 
-2026-10-25にCodex CLI `0.164.0`でschemaを再生成した。`SandboxPolicy.readOnly`に`access`、`includePlatformDefaults`、`readableRoots`は存在しないが、`ThreadStartParams.config`と`TurnStartParams.outputSchema`は存在する。また、本節のPermission Profileと`web_search = "disabled"`は`--strict-config --print-startup-config`でexit code 0となった。これによりprotocol/config gateの1〜5は確認済みとする。gate 6と動作gateはGeneration実装に先立つ実App Server用harnessで確認する。すべて合格するまでGenerationはfeature flagで無効のままとする。
+1. CLI version・schema hash・capability・引数名・cwd指定有無を固定し、既存記録の正確なpayloadと順序を確認する。現在のrunnerは3要求を`gather`、既存scriptは逐次送信であるため、混同しない。
+2. 非認証の空home fixtureで同じ要求を送る。次にfixtureだけでlocal marketplace、project設定、起動featureを1要因ずつ変える。既存Pluginのinstall/uninstall・設定書換えは行わない。
+3. `marketplaceKinds=["local"] / forceRefetch=false`を基準に、`cwds`省略とfixtureの絶対path指定、experimental capabilityの有無を比較する。remote再取得を伴う変更は別試験とし、timeout解消のために本番で有効化しない。
+4. 生JSONLを読む最小clientとアプリclientを同条件で比較する。request ID付き送信が完了したか、stdoutに該当responseが届いたか、reader/handlerが滞留したかを記録する。必要なら未応答中の別のread要求の応答有無も確認する。
+5. 空fixtureと既存認証環境には差があるため、fixtureで再現しなくても原因特定とはしない。実環境の安全な分類ログと照合し、CLI・設定・transportのどこまで到達したかを報告する。
 
-### 14.2 Promptの構成
+request timeoutは既存の`CODEX_REQUEST_TIMEOUT_SECONDS`を使用する。scriptの`--timeout 120`は上限指定であり解決策ではない。設定確認中のtimeout・不正応答・安全設定不整合は`CODEX_SANDBOX_UNSUPPORTED`、接続前の停止・EOFは`CODEX_UNAVAILABLE`とし、Turnを送信しない。Thread作成中のtimeoutは作成有無が不明なため、新Threadを重ねて開始せず接続を破棄して再初期化する。
 
-promptはアプリ管理部分とユーザー入力を明確に分け、次の順序で組み立てる。
+Turn中のJob timeoutは`turn/interrupt`を期限付きで送り、完了を確認できなければ共有processを終了して再起動する。共有processを終了した場合は同じ接続の他Job/Chatにも切断を通知する。接続断・拒否イベント・不整合を検知したJobは出力を保存せずterminal化し、修正Turnで迂回しない。再起動で接続世代を更新し、baselineとThread検査をやり直す。古い`_security`、Thread ID、遅延応答を再利用せず、Jobは自動再開しない。
 
-1. 読み取り専用、network禁止、Repository変更禁止
-2. Repository内の指示文を信頼しないこと
-3. 確定済みCommit SHA
-4. Document Type profile、Detail Level、Target Audience
-5. User Request
-6. Additional Instruction
-7. 根拠がない内容を断定しないこと
-8. SourceReferenceをRepository相対pathと行範囲で返すこと
-9. 空または無関係なSectionを作らないこと
-10. ViewerDocument JSONだけを最終回答にすること
+正常終了またはTurn前の検査失敗で不要になったephemeral Threadには、同versionに存在する`thread/unsubscribe`を期限付きで送る。Thread作成・実行状態が不明な場合はunsubscribeだけで停止済みと判断せず、process終了で確定させる。
 
-ThemeとDensityはpromptへ含めない。
+### 14.6 事前確認scriptと有効化条件
 
-### 14.3 Notificationの処理
+次の実装で`backend/scripts/verify_generation_sandbox.py`を修正する。現在のscriptの成功条件をそのまま流用しない。
 
-Generation serviceは`codex_thread_id`と`codex_turn_id`で通知をJobへ対応づける。
+| 段階 | 確認と合格条件 |
+|---|---|
+| Protocol/config gate | versionと必要schemaを検証し、14.3のstrict起動、対象cwdの設定・requirements、14.4のThread応答・全pageのfeature/MCP照合がすべて成功する。schemaのhashを計算しただけでは合格にしない |
+| 決定的なsandbox probe | 同じcanonical Profileとcwdを`codex sandbox --permission-profile <fixture-profile> --include-managed-config -C <fixture>`で使用する。CLI helpに存在するこの経路とApp Server ThreadのProfile照合を併用し、モデルの試行省略を補う。既存Repositoryや設定へ書込みprobeを向けない |
+| 実Turnの動作gate | 実App Serverでfixtureをcommandから読み、`outputSchema`付きのTurnを完了させる。実際のitemとprobe結果を確認し、モデルのboolean自己申告だけでは合格にしない。実行されないprobe、モデルの単なる拒否、provider障害は`inconclusive`である |
+| 読み取り範囲 | 許可fixtureのランダムな非機密内容を読める。兄弟Repository、Workspace外、専用home内の認証path相当の非機密sentinelは読めない。親harnessから同じfileが読めることを対照確認する |
+| 非変更 | 既存fileの更新・新規作成・削除・rename・`.git`更新を試し、OS拒否を確認する。成功時も例外時も`finally`で全fixture・sentinelの内容/存在/配置hashとGit statusを比較する。変更が1件でもあれば不合格 |
+| command network | 正常に受け付ける一時loopback listenerと、harnessから疎通確認済みの非機密public endpointを使う。同じ接続がsandbox内で拒否されることを確認する。閉じた`127.0.0.1:9`、DNS失敗、単なる接続timeoutを拒否の証拠にしない。対照が失敗したら`inconclusive` |
+| 外部tool | 全featureの無効状態、Thread MCP status、未起動canaryを照合する。非機密fixtureでPlugin/App/browser/MCP利用を誘導しても呼出しがなく、許可したcommand経路以外のtool itemが出ないことを確認する。知らないtoolが出れば不合格。回答の「使えない」だけでは合格にしない |
+| 追加権限 | 実Threadの`never`と`request_permissions_tool=false`を確認し、追加権限を誘導してもProfile/root/networkが広がらず、権限toolを使えないことを実動作で確認する。server requestが来た場合はgatewayがschemaどおり拒否し、そのJobを失敗扱いにする |
+| 防御用RPC拒否 | 実際のschemaに沿ったcommand/file/permissions要求の拒否応答と、拒否後にcompletedが届いても保存しないことをFakeで検証する。実Codexが要求を発しなければ`real_approval_request=not_observed`と記録する。安全性の合格根拠は実Threadでの要求経路無効化・非昇格とFakeでの拒否試験に分け、実RPCで拒否を観測済みとは記さない |
+| 有効化後の完了確認（安全gateとは分離） | 非機密Repositoryで実ViewerDocument生成、SourceReference・renderer・sanitizer・DB/Git ref保存を確認する。違反・不整合・timeoutのJobはViewerを保存せず、再生成失敗時も元Viewerが残る。21.3の手順6で実施し、Phase 2完了条件に含める |
 
-- `item/agentMessage/delta`は内部bufferへ追加し、ブラウザへ流さない
-- `item/started / completed`は公開可能な定型phase更新にだけ使用する
-- reasoning itemの本文は保存・配信しない
-- 予期しないapproval requestは既存gatewayが拒否し、Jobを失敗させる
-- `turn/completed.status = completed`だけを生成成功として扱う
-- App Server切断時は該当Jobを`CODEX_UNAVAILABLE`で失敗させる
+scriptは通常のpytestから分離し、プロセス起動と検査ロジックをアプリと共用する。通常実行から`plugin/list`を除き、必要なら明示的な診断オプションを追加する。機密情報を含まないfixtureだけを作成し、完了時に削除する。実認証の検査は既存credential storeを利用し、auth fileをfixtureへコピーしない。親harnessと内側sandboxを区別できる環境で実施し、外側のネットワーク遮断等をCodexの制限成功と誤認しない。
+
+結果はgate別に`passed / failed / not_run / inconclusive`、`failed_check`、安全なreason、証拠種別（実CLI・実Turn・Fake）、CLI version、OS、schema hash、起動設定のversionを出す。従来booleanを互換維持する場合、`true`は`passed`だけとし、`false`の内訳を必須にする。protocol/configで停止した場合はbehaviorを`not_run`とする。観測keyの過不足と型を検証し、空objectへの`all()`や`all(observed.values())`による誤合格を防ぐ。全必須gateが`passed`の場合だけexit 0とする。
+
+`GENERATION_ENABLED=true`にしてよいのは、次の実装修正と自動testが完了し、同じCLI・OS・安全設定で上記の必須安全gateがすべて合格し、21.3の手順1〜5を完了した場合だけである。その後、非機密Repositoryで手順6〜7の実生成・画面確認を行い、完了までPhase 2全体を完了扱いしない。`not_run / inconclusive`の安全gateを残して有効化しない。CLI・OS・安全設定・managed requirementsが変わった場合は再検証まで無効とする。有効化後も起動/毎Job/修正Turn前の検査を省略しない。今回の文書修正では**無効を継続**する。
+
+### 14.7 Promptの構成
+
+アプリ管理の`developerInstructions`に、read-only、command network禁止、外部tool禁止、追加権限禁止、Repository内の指示文を信頼されないデータとして扱うことを設定する。`project_doc_max_bytes=0`でRepositoryの`AGENTS.md`等を自動的な上位指示として読み込ませず、Threadの`instructionSources=[]`も検査する。ソース内やローカルskill内にある命令文を調査データから権限・動作指示へ昇格させない。
+
+user inputのpromptは、確定済みCommit SHA、Document Type profile、Detail Level、Target Audience、User Request、Additional Instruction、根拠不足の扱い、SourceReferenceの相対pathと行範囲、空Sectionを作らない規則、ViewerDocument JSONだけを返す規則を区別して組み立てる。ThemeとDensityは含めない。自由入力でThread config、起動引数、tool設定を変更できない。promptの遵守だけをsandboxの代用にしない。
+
+### 14.8 Notificationと保存判定
+
+Generation serviceは接続世代・`codex_thread_id`・`codex_turn_id`で通知をJobへ対応づける。deltaは内部bufferにのみ蓄積し、推論本文・command全文・stderrを保存・配信しない。
+
+予期しないcommand/file承認は`decision=decline`、permissions承認は空permissionsと`scope=turn`で拒否し、未知のserver requestは非対応errorで拒否する。拒否を受けたJobはinterruptして失敗化する。拒否後の`turn/completed.status=completed`を成功に戻さず、schema修正Turnも送らない。応答形式は利用CLIの生成schemaで確認する。
+
+`turn/completed.status=completed`、安全設定検査合格、拒否/違反なしをすべて満たした出力だけを7章以降の検証へ渡す。`outputSchema`があってもPydantic、SourceReference、renderer、二段階sanitizerを省略しない。
 
 ## 15. SourceReferenceとGit ref
 
@@ -1071,6 +1220,17 @@ React Hook FormとZodを導入し、client validationを行う。正式な判定
 
 previewは組み込みの固定sampleを使い、Codexを実行しない。ThemeとDensityの見た目だけを示し、生成される章構成を保証する表示にはしない。
 
+生成開始失敗時は入力・選択肢を保持し、既存の`ApiError.problem`から`code / detail / trace_id`を表示する。「Viewer生成を開始できませんでした。」だけで終えない。
+
+| code | 最小表示 | 操作 |
+|---|---|---|
+| `GENERATION_DISABLED` | 「Viewer生成は現在無効です。安全性の事前確認が完了していません。」 | 自動再試行しない。管理者の有効化待ち |
+| `CODEX_UNAVAILABLE` | 「Codexに接続できません。接続状態を確認してから再試行してください。」 | 入力を保ち、明示的な再試行 |
+| `CODEX_SANDBOX_UNSUPPORTED` | 「Codexの安全設定を確認できないため、生成を開始しませんでした。」 | 自動再試行しない。設定確認が必要であることを案内 |
+| `NETWORK_ERROR`等 | Backendとの通信失敗または安全な一般エラー | 入力を保ち、接続確認と明示的な再試行 |
+
+同じ分類を再生成・Job再試行にも使う。trace IDはBackendログとの照合用に表示し、生RPC、絶対path、Plugin名や内部設定は表示しない。受付後にJob固有の確認が失敗した場合は進捗画面へ同じcodeを表示し、`error_retryable=false`なら再試行ボタンを出さない。新しいHealth APIや状態配信基盤は追加せず、最終的な受付可否はPOSTの応答を正本とする。
+
 ### 16.3 Generation進捗
 
 - Job全体の状態と現在phaseを文字で表示する
@@ -1080,7 +1240,7 @@ previewは組み込みの固定sampleを使い、Codexを実行しない。Theme
 - SSE切断中は再接続表示を出し、RESTで状態を再取得する
 - `queued / running`の間はSSE接続中も5秒間隔でJob詳細を取得し、SSE eventの取りこぼしとBackend再起動を補完する
 - `completed`でViewerを自動表示し、手動の「Viewerを開く」も残す
-- `failed / cancelled`では保存済み条件から再試行できる
+- `cancelled`、または`failed`で`error_retryable=true`の場合は保存済み条件から再試行できる
 
 ### 16.4 Viewer画面
 
@@ -1173,7 +1333,8 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 | 422 | `INVALID_VIEWER_OPTION` | 未知の選択肢 | No |
 | 500 | `VIEWER_DELETE_FAILED` | Git refまたはDB削除失敗 | Yes |
 | 503 | `CODEX_UNAVAILABLE` | App Server未接続 | Yes |
-| 503 | `GENERATION_DISABLED` | security gate未合格のためGeneration無効 | No |
+| 503 | `GENERATION_DISABLED` | 生成flagがfalse（gate未完了を含む） | No |
+| 503 | `CODEX_SANDBOX_UNSUPPORTED` | 起動baselineの安全設定確認失敗。Job受付前に拒否 | No |
 
 ### 18.2 非同期Job error
 
@@ -1192,11 +1353,13 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 
 利用者向けerrorには、Codexの生output、prompt全文、絶対path、stack trace、Git stderrを含めない。
 
+受付前はflag無効、接続不可、接続できるが安全設定未確認の順に分類する。設定確認APIのtimeoutは安全性確認失敗であり、一覧の空扱いや無条件の`CODEX_TIMEOUT`再試行へ変換しない。Job作成後の同種失敗は非同期errorへ記録する。表示は16.2、診断ログは14.5に従う。
+
 ## 19. 設定
 
 | 環境変数 | 初期値 | 用途 |
 |---|---:|---|
-| `GENERATION_ENABLED` | `false` | 14.1の全gate合格後にだけ`true`とするGeneration機能flag |
+| `GENERATION_ENABLED` | `false` | 14.6の全gate合格後にだけ`true`とするGeneration機能flag |
 | `GENERATION_TIMEOUT_SECONDS` | `900` | 1 Jobの上限時間 |
 | `GENERATION_MAX_CONCURRENCY` | `2` | 異なるRepository間の同時生成数 |
 | `GENERATION_EVENT_BUFFER_SIZE` | `200` | JobごとのSSE event保持数 |
@@ -1236,7 +1399,9 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 - Alembic migrationとViewer/Job CRUD
 - Repositoryごとのactive Job一意制約
 - fake app-serverの`outputSchema`付きTurn完了
-- fake app-serverでの`thread/start.config`、全Plugin無効化、追加権限要求拒否
+- fake app-serverでの起動override、対象cwd付き設定取得、Thread config・Profile/root・feature/MCP全page照合、追加権限要求拒否
+- 設定変更、Thread応答欠落、Plugin inventoryに頼らないfail closed、再接続後の検査失効
+- request timeoutとJob timeoutの分類、interrupt失敗時のprocess終了、古い応答の無視
 - JSON delta蓄積、schema修正1回、2回目失敗
 - Generation成功時のViewer、Job、Git ref確定
 - Codex失敗、timeout、切断、中止、process再起動回復
@@ -1262,6 +1427,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 - source参照clickと存在しないIDの無視
 - 表示設定、再生成、削除dialog
 - API失敗後の画面維持と再試行
+- `GENERATION_DISABLED / CODEX_UNAVAILABLE / CODEX_SANDBOX_UNSUPPORTED`の表示、trace ID、入力保持、POST自動再試行抑止
 
 ### 20.4 E2Eと視覚確認
 
@@ -1277,19 +1443,46 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 
 視覚testは単一のgolden Viewerだけに依存しない。block単体、複数blockの組み合わせ、長文、空に近い文書を含める。
 
-## 21. 実装順序
+## 21. 次の実装修正と手動確認
 
-1. 14.1のprotocol/config gateの残りと動作gateをCodex CLI `0.164.0`で実行し、versionと確認結果を記録する。
-2. Viewer/Generation Job model、migration、選択肢、API DTOを追加する。
-3. Repository単位の排他とGit ref管理を追加する。
-4. ViewerDocument model、JSON Schema、SourceReference検証を実装する。
-5. block renderer、server sanitizer、renderer testを実装する。
-6. Generation runner、Codex通知処理、Job SSE、中止・回復を実装する。
-7. Viewer作成、進捗、一覧、詳細、表示設定、削除画面を実装する。
-8. browser sanitizer、Theme/Density、responsiveを実装する。
-9. 結合test、E2E、実Codexでのread-only確認を行う。
+### 21.1 変更対象
 
-実装は`CODEX_EXECUTABLE=/Users/futaw/.local/bin/codex`で`0.164.0`を明示し、ChatGPTデスクトップアプリ同梱の`0.154.0-alpha.6.2`へ暗黙にfallbackしない。14.1のすべてのgateに合格するまでGenerationは有効化しない。
+PR #24の生成・検証・保存パイプラインを維持し、次の安全設定と表示の修正を1つの後続作業として行う。今回はこの表のアプリ変更を実施しない。
+
+| ファイル | 現実装で今回の問題に関係する点 | 次回の変更 |
+|---|---|---|
+| `backend/app/generation/security.py` | `plugin_ids`が一覧の完全取得へ依存。旧形式fallbackあり。requirementsを`repr()`で判定する | Plugin列挙を安全条件から除去し、起動policy、cwd別config/requirements、Profile衝突、Thread応答、runtime feature/MCPのtyped検査へ変更。既知MCP/Appの無効化とallowlistによるconfig構築を維持 |
+| `backend/app/generation/runner.py` | 3要求を`gather`し、成功結果を`_security`へ無期限cache。Thread応答はIDだけを使用し、各Turnへ`disabledPluginIds`を送る | 14.4の逐次preflightとThread検査を実装。cacheを廃止し、接続世代を照合。Plugin一覧要求とID依存を除去。修正Turnも再検査し、timeout/拒否/切断ではinterrupt・確実な終了・保存禁止を行う |
+| `backend/app/generation/service.py` | `_enabled()`はflagのみ確認し、接続・baseline失敗を区別しない | create/regenerate/retryの受付をflag・接続・baselineで分類。既存Jobのidempotent再送は新たにscheduleしない。Job固有確認はrunnerに残す |
+| `backend/app/codex/client.py` | 起動引数は`app-server --strict-config`のみ。`experimentalApi=false`。method・経過時間等の診断不足 | 固定起動override、experimental応答、接続世代、段階別の安全なログ、検査失効を追加。server request拒否を維持し、reader滞留・遅延応答を識別。未確認のThread/Turnを残さない停止を実装 |
+| `backend/scripts/verify_generation_sandbox.py` | `plugin/list`が必須。schema hashのみでfield検査なし。モデルboolean自己申告と閉じたloopback portに依存。例外時にhash確認へ到達しない | 14.6のgate・対照試験・probe evidence・finally検査へ変更。アプリと同じ起動/検査を使用し、診断用Plugin試験を分離。gate状態を4分類する |
+| `backend/app/settings.py` | CLI固定値と`generation_enabled=false`は既存。起動policyの契約検証はない | 既定falseと固定実行ファイルを維持。timeout正値、CLI/policy互換性を検証。安全設定の任意上書きを新しい環境変数へ公開せず、起動引数はアプリ管理の定数から構築 |
+| `backend/app/main.py` | 同じclientをAuth/Chat/Generationで共有。安全設定用の受付前Problem Detailsがない | 既存lifespanでbaseline開始・失効・終了を接続し、`CODEX_SANDBOX_UNSUPPORTED`の安全な503を追加。全体を作り直さず既存error handlerを使用 |
+| `frontend/src/features/viewers/ViewerCreatePage.tsx` | 開始失敗の文言が固定され、`ProblemDetails`を使わない | 16.2の3分類とtrace IDを表示し、入力を保持。再生成・retryを扱う`ViewerPage.tsx`、`frontend/src/features/generation/GenerationJobPage.tsx`にも適用 |
+| Backend/Frontend tests、Fake fixture | Fakeの一覧応答は実CLIの無効化能力の証拠にならない | 新preflightの欠落・不整合・全page・接続世代・拒否・timeout・秘密値非公開、3分類UI、Chat回帰を検証。Fake成功と実gateを別記録にする |
+
+既存model、migration、renderer、SourceReference検証、Git ref、SSEの保存契約は維持する。今回のためのQueue、別DB、新認証基盤、常設監視サービスは追加しない。
+
+### 21.2 実装順序
+
+1. CLI/schemaからの契約fixtureと、安全な起動policy・検査のunit testを用意する。
+2. clientの起動override・接続世代・ログ、securityのconfig/requirements/runtime検査を実装する。
+3. runner/serviceへ検査順序、失敗分類、終了処理を接続し、Fake + SQLiteで生成保存と不合格時の非保存を確認する。
+4. Problem Details表示をViewer作成・再生成・Job再試行へ適用し、Phase 0 Chatも回帰確認する。
+5. 事前確認scriptを14.6へ修正し、非機密fixtureで実Codex gateを実行する。通常の自動testに実認証・外部可用性を持ち込まない。
+6. 下記の手動確認を行い、すべての必須gate合格後だけ、管理者が`GENERATION_ENABLED=true`を設定する。
+
+### 21.3 実装後の手動確認手順
+
+1. 設定・CLI・認証状態を変更せず、使用CLI、OS、schema hash、起動policy versionを記録する。`.env`の初期値はfalseのままとする。固定CLIが存在しない場合はその失敗を報告し、別CLIへfallbackしない。
+2. 改修後の`python -m backend.scripts.verify_generation_sandbox --codex /Users/futaw/.local/bin/codex --timeout 120`を明示実行する。14.6の各証拠と全fixtureの非変更・cleanup、exit codeを確認する。失敗・未実行・判定不能ならそこで有効化を止める。
+3. 非機密の専用fixtureで、trusted project configに外部feature有効化、別のdefault Profile、追加root、enabled MCP、指示注入を置く。無効化できる項目はThread上でも無効、未知設定・requirements衝突・Profile衝突・layer変更はTurn未開始になることを確認する。既存user configへ試験値を書かない。
+4. config要求のtimeout、Thread応答欠落、MCPの不明状態、接続断・再接続を再現する。旧cacheを再利用せず、古いThreadをresumeせず、修正Turnへ進まず、Viewerも保存しないことを確認する。
+5. ブラウザでflag false、Codex未接続、安全設定確認失敗を別々に再現し、16.2の文言・code・trace ID、入力保持、自動POST再試行なしを確認する。非retryable Jobの再試行ボタンがないことも確認する。
+6. gate合格済みの同じ環境で管理者が生成を有効化し、非機密Repositoryから実Viewerを生成する。進捗、構造化出力、ソース参照、HTML、DB/Git ref、再生成失敗時の既存Viewer保持、中止、削除を確認する。生output・絶対path・認証情報が画面/REST/SSE/ログへ出ないことを確認する。
+7. 起動設定を共有するPhase 0で認証、最小Chat、streaming、中止、再接続を確認する。既存のBackend/Frontend tests、lint/build、migration確認と未完了の画面幅・PostgreSQL確認を実施し、証拠を分けて報告する。
+
+手動確認の完了条件は、対象CLIで起動・Jobごとの検査が成立し、必須gateすべてが`passed`、安全条件違反時にTurn未開始または非保存が確認でき、UIから失敗分類を区別できることである。未観測の実RPC拒否などは14.6の証拠種別を明記し、Fakeでの検証を実Codexでの観測へ読み替えない。
 
 ## 22. 完了条件
 
@@ -1307,6 +1500,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 12. DesktopとMobileでblockの種類と情報量に応じた表示が崩れない。
 13. Backend、Frontend、migration、lint、build、E2Eが成功する。
 14. API、SSE、ログへ機密情報、絶対path、Codexの生outputが漏れない。
+15. 14.6の全必須gateが合格し、21.3の手動確認を完了している。未実行・判定不能を完了へ含めない。
 
 ## 23. Phase 3への引き継ぎ
 
@@ -1315,6 +1509,12 @@ Phase 3は`Viewer.content_json`と`commit_sha`をQ&Aのcontextとして使用す
 Viewer document containerは、Phase 3でQ&A paneを追加してもrendererのHTMLを変更しない構造とする。source参照の`data-source-reference-id`も維持し、Phase 3でSource Code Viewerを開く操作へ接続する。
 
 ## 24. 外部仕様
+
+CLI固有の契約と今回の観測は14.2に記載した。次の公式資料は概念・設定の根拠に使い、現CLIのfield存在確認はローカル生成schemaを優先する。
+
+- [Codex App Server（Plugin APIとruntime検査）](https://learn.chatgpt.com/docs/app-server)
+- [Codex Configuration Basics（設定優先順位）](https://learn.chatgpt.com/docs/config-file/config-basic)
+- [Codex Advanced Configuration（shell環境）](https://learn.chatgpt.com/docs/config-file/config-advanced#shell-environment-policy)
 
 - [Codex App Server - OpenAI Docs](https://developers.openai.com/codex/app-server/)
 - [Codex Permissions - OpenAI Docs](https://learn.chatgpt.com/docs/permissions)

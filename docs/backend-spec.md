@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.8
-- 更新日: 2026-10-25
+- 文書バージョン: v0.9
+- 更新日: 2026-10-30
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -62,7 +62,7 @@ WebSocket transportはApp Serverを別ホスト化する将来候補だが、現
 6. プロセス終了を検知し、実行中リクエストを失敗として解放する。
 7. 再起動時は新しい接続としてハンドシェイクをやり直す。
 
-`initialize.clientInfo`はハードコードせず設定値で持ち、`name`, `title`, `version`を必ず送信する。Phase 0では実験API capabilityを有効にしない。
+`initialize.clientInfo`はハードコードせず設定値で持ち、`name`, `title`, `version`を必ず送信する。Phase 2の安全設定改訂では、既存の共用processを外部機能無効化の固定override付きで起動し、`experimentalApi=true`でProfile/rootの応答を確認する。Phase 0単独時の契約からの変更であり、最小Chatも回帰確認する。起動設定、接続世代、baseline確認は[Phase 2詳細設計14章](./phase-2-detailed-design.md#14-codex-app-server連携)に定める。次の実装修正で適用し、今回の設計改訂だけで動作済みとは扱わない。
 
 ### 3.3 JSON-RPC Client
 
@@ -91,6 +91,8 @@ App Serverのwire schemaをRoute層やDB modelへ漏らさない。`CodexThread`
 
 Repositoryを対象とするThreadは、Codex CLI `0.164.0`のPermission Profileを`thread/start.params.config`へ渡し、Repositoryと必要最小限のplatform/runtime pathだけを読み取り可とする。旧`sandboxPolicy.readOnly.access`は同versionのApp Server schemaにないため使用しない。
 
+以下はProfile部分の概略である。Generationで必須となる起動override、MCP/App無効化、Thread応答・runtime確認はPhase 2詳細設計14章に従う。
+
 ```json
 {
   "cwd": "/managed-workspaces/<repository-id>",
@@ -113,6 +115,8 @@ Repositoryを対象とするThreadは、Codex CLI `0.164.0`のPermission Profile
 ```
 
 実際のパスは設定値から解決する。ユーザー入力やDB上の値をそのまま`cwd`に使用しない。Permission Profileと旧`sandbox_mode`、`sandbox_workspace_write`、CLIの`--sandbox`、Thread/Turnの`sandbox`・`sandboxPolicy`は併用しない。外部toolを無効化できない場合や、有効configに旧sandbox設定がある場合はfail closedとする。Phase 2 GenerationのProfile生成、外部tool無効化、protocol/config gate、動作gateは[Phase 2詳細設計書](./phase-2-detailed-design.md#141-threadとturn)に定める。
+
+改訂方式では`plugin/list`と`disabledPluginIds`を外部tool無効化の根拠にしない。CLI 0.164.0の生成型定義では後者は保存用で、Plugin機能をfilterしないと明記されている。起動featureを無効化し、毎Jobの`config/read`にRepositoryの`cwd`を渡して全MCP/App設定を検査・無効化する。ThreadのProfile・root、全pageのfeature/MCP runtime状態を確認するまでTurnを送信しない。設定の読戻しだけでThread overrideの適用済みとは判断せず、検査結果を再接続後や別Jobへcacheしない。詳細は同設計書14.2〜14.6に従う。
 
 Phase 0 ChatはRepository管理とは独立し、環境設定の`TEST_CHAT_WORKSPACE`を`cwd`に使用する。登録済みRepositoryの有無をSession作成条件にしない。Repositoryを対象とするConversationはPhase 3で別に実装する。
 
@@ -267,6 +271,8 @@ POST   /api/generation-jobs/{job_id}/retry
 ```
 
 ThemeとDensityを同時に扱う。詳細なrequestとresponseは[Phase 2 詳細設計書](./phase-2-detailed-design.md)を参照する。
+
+生成受付では`GENERATION_ENABLED=false`を`503 GENERATION_DISABLED`、接続不可を`503 CODEX_UNAVAILABLE`、接続できるが安全設定確認に失敗した場合を`503 CODEX_SANDBOX_UNSUPPORTED`で返す。後者は非retryableとし、内部原因はtrace ID付きの安全なログへ記録する。受付後のJob固有確認失敗も同じcodeで非保存とする。既存の表示・例外処理には後続の実装修正が必要である。
 
 Viewer作成は`202 Accepted`で`job_id`を返し、この時点の`viewer_id`は`null`とする。ViewerはGeneration成功時だけ保存し、生成途中・失敗・中止はGeneration Jobで管理する。
 
@@ -518,6 +524,8 @@ REST errorはRFC 9457 Problem Details相当の形に統一する。
 - `DELETE_FAILED`
 - `REPOSITORY_IN_USE`
 - `GENERATION_FAILED`
+- `GENERATION_DISABLED`
+- `CODEX_SANDBOX_UNSUPPORTED`
 - `DOCUMENT_SCHEMA_INVALID`
 - `HTML_RENDER_FAILED`
 - `SOURCE_PATH_INVALID`
@@ -534,6 +542,8 @@ REST errorはRFC 9457 Problem Details相当の形に統一する。
 - 予期しない承認要求は拒否
 - プロンプト内のRepositoryコンテンツを信頼されない入力として扱う
 - Repository内ファイルに書かれた「上位指示を無視する」等の指示に従わない
+- 起動時にPlugin/App/browser等を無効化し、Threadのruntime状態を検査する。command network禁止だけで外部tool通信を防げるとは扱わない
+- Phase 2は`GENERATION_ENABLED=false`を既定とし、実装済み・Fake検証済み・実Codex検証済みを分ける。`plugin/list`のtimeout時に動作gateまで不合格だったと解釈しない
 
 ### Git / Filesystem
 
