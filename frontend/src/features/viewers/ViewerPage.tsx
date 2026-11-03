@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { deleteViewer, getViewer, regenerateViewer, updateViewerAppearance } from './viewerApi'
 import { ViewerAppearanceDialog } from './ViewerAppearanceDialog'
 import { ViewerDeleteDialog } from './ViewerDeleteDialog'
+import { GenerationError } from '../generation/GenerationError'
 import { sanitizeViewerHtml } from './viewerSanitizer'
 import type { SourceReference } from './viewerTypes'
 
@@ -15,7 +16,7 @@ export function ViewerPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [source, setSource] = useState<SourceReference | null>(null)
   const viewer = useQuery({ queryKey: ['viewers', viewerId], queryFn: () => getViewer(viewerId), retry: false })
-  const regenerate = useMutation({ mutationFn: () => regenerateViewer(viewerId, crypto.randomUUID()), onSuccess: (job) => navigate(`/jobs/${job.id}`) })
+  const regenerate = useMutation({ retry: false, mutationFn: () => regenerateViewer(viewerId, crypto.randomUUID()), onSuccess: (job) => navigate(`/jobs/${job.id}`) })
   const appearance = useMutation({ mutationFn: (value: { theme_slug: string; density: string }) => updateViewerAppearance(viewerId, value), onSuccess: () => { setAppearanceOpen(false); void queryClient.invalidateQueries({ queryKey: ['viewers', viewerId] }) } })
   const remove = useMutation({ mutationFn: () => deleteViewer(viewerId), onSuccess: () => { if (viewer.data) navigate(`/repositories/${viewer.data.repository_id}`) } })
   const html = useMemo(() => sanitizeViewerHtml(viewer.data?.sanitized_html ?? ''), [viewer.data?.sanitized_html])
@@ -34,6 +35,7 @@ export function ViewerPage() {
       <div className="viewer-actions"><button className="secondary" onClick={() => setAppearanceOpen(true)}>表示設定</button><button className="secondary" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>再生成</button><button className="danger-outline" onClick={() => setDeleteOpen(true)}>削除</button></div>
       <dl className="viewer-metadata"><div><dt>Branch</dt><dd>{value.repository.default_branch ?? '—'}</dd></div><div><dt>Commit</dt><dd><a className="mono" href={commitUrl} target="_blank" rel="noopener noreferrer">{value.commit_sha.slice(0, 12)} ↗</a></dd></div><div><dt>Type / Detail</dt><dd>{value.document_type} / {value.detail_level}</dd></div><div><dt>Audience</dt><dd>{value.target_audience}</dd></div><div><dt>Theme / Density</dt><dd>{value.theme_slug} / {value.density}</dd></div><div><dt>Updated</dt><dd>{new Date(value.updated_at).toLocaleString()}</dd></div></dl>
     </header>
+    {regenerate.isError && <GenerationError error={regenerate.error} />}
     <div className="viewer-shell"><details className="viewer-toc" open><summary>目次</summary><nav aria-label="目次"><ol>{value.content_json.sections.map((section) => <li key={section.id}><a href={`#${section.id}`}>{section.heading}</a></li>)}</ol></nav></details>
       <div className="viewer-document-container" onClick={onDocumentClick} dangerouslySetInnerHTML={{ __html: html }} />
     </div>

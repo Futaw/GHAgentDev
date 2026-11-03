@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.8
-- 更新日: 2026-10-30
+- 文書バージョン: v0.9
+- 更新日: 2026-11-03
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -85,9 +85,9 @@ Phase 0 Chatは登録済みRepositoryではなく、環境設定の`TEST_CHAT_WO
 - 検証済みHTMLの生成と保存
 - Viewer一覧・詳細・削除・テーマ変更・再生成
 
-Phase 2の実装はPR #24でmainへマージ済みであり、Fake Codex + SQLiteで生成・検証・保存を確認した。実Codexでは設定APIの応答後に`plugin/list`がtimeoutし、権限制限の動作gateは未実行である。`GENERATION_ENABLED`の既定値は`false`を維持する。
+Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。[Phase 2詳細設計v1.3](./phase-2-detailed-design.md)に基づき、起動時の外部機能無効化、cwd別の設定・requirements、ThreadのProfile・root・全pageのfeature/MCP検査と、3分類のエラー表示を実装した。既存のstdio App ServerとJob固有Permission Profileを維持し、`plugin/list`と`disabledPluginIds`へ依存しない。
 
-[Phase 2詳細設計v1.3](./phase-2-detailed-design.md)では、既存のApp ServerとJob固有Permission Profileを維持し、起動時の外部機能無効化、対象cwdの設定、ThreadのProfile・root・feature/MCP状態で安全性を確認する方式へ改訂した。非認証fixtureで起動とThreadの限定確認はできたが、この改訂のアプリ実装修正、認証付きTurnのread-only/network制限、実生成は未検証である。実装済み、Fakeで検証済み、実Codexで検証済みを分け、全gate合格後だけ生成を有効化する。
+2026-11-03の実Codex事前確認では、専用homeのThread検査、変更とcommand通信のOS拒否は確認できた。一方、canonical Profileでも対象外の非機密sentinelを読めたため、読み取り範囲gateは不合格である。実ユーザー設定の検査もshell環境mergeで停止し、認証付きTurn・実生成は未実行である。`GENERATION_ENABLED`の既定値falseと実際の`.env`を維持し、生成は有効化しない。合否、証拠種別と未実施事項は[安全性検証記録](./verification/2026-11-03-generation-safety.md)に記載する。
 
 ### Phase 3: Viewer内Q&A
 

@@ -91,3 +91,42 @@ async def test_request_timeout_is_distinct_from_connection_failure() -> None:
         assert client.connected is True
     finally:
         await client.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "kind, expected",
+    [
+        ("commandExecution", {"decision": "decline"}),
+        ("fileChange", {"decision": "decline"}),
+        ("permissions", {"permissions": {}, "scope": "turn"}),
+    ],
+)
+async def test_rejects_schema_shaped_approval_and_reader_keeps_running(kind, expected):
+    client = CodexAppServer(make_settings())
+    await client.start()
+    try:
+        response = await client.request("test/approval", {"kind": kind})
+        assert response["result"] == expected
+        assert client.rejection_count == 1
+    finally:
+        await client.stop()
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_can_request_without_blocking_reader():
+    client = CodexAppServer(make_settings())
+    finished = asyncio.Event()
+
+    async def handler(method, params):
+        if method == "turn/completed":
+            await client.request("account/read", {})
+            finished.set()
+
+    client.add_notification_handler(handler)
+    await client.start()
+    try:
+        await client.request("turn/start", {})
+        await asyncio.wait_for(finished.wait(), 1)
+    finally:
+        await client.stop()

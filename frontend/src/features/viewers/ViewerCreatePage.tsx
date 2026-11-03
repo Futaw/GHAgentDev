@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
+import { GenerationError } from '../generation/GenerationError'
 import { createViewer, getViewerOptions } from './viewerApi'
 
 const schema = z.object({
@@ -35,6 +36,7 @@ export function ViewerCreatePage() {
       ...values,
       additional_instruction: values.additional_instruction.trim() || null,
     }, key.current),
+    retry: false,
     onSuccess: (job) => navigate(`/jobs/${job.id}`),
   })
   const theme = form.watch('theme_slug')
@@ -66,7 +68,7 @@ export function ViewerCreatePage() {
         </div>
         <label htmlFor="additional_instruction">Additional Instruction</label>
         <textarea id="additional_instruction" rows={4} disabled={create.isPending} {...form.register('additional_instruction')} />
-        {create.isError && <div className="error-card" role="alert">Viewer生成を開始できませんでした。</div>}
+        {create.isError && <GenerationError error={create.error} />}
         <div className="form-actions"><Link className="secondary button" to={`/repositories/${repositoryId}`}>戻る</Link><button className="primary" disabled={create.isPending}>生成を開始</button></div>
       </form>
     </section>

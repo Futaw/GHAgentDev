@@ -100,6 +100,7 @@ class GenerationJobResponse(BaseModel):
                 "code": model.error_code,
                 "message": model.error_message,
                 "retryable": bool(model.error_retryable),
+                "trace_id": str(model.id),
             }
         return cls(
             id=model.id,

@@ -7,11 +7,38 @@ def send(message: dict) -> None:
     print(json.dumps(message, separators=(",", ":")), flush=True)
 
 
+approval_waiter = None
 for raw_line in sys.stdin:
     message = json.loads(raw_line)
     method = message.get("method")
     request_id = message.get("id")
-    if method == "initialize":
+    if method is None and request_id == 999 and approval_waiter is not None:
+        send({"id": approval_waiter, "result": message})
+        approval_waiter = None
+    elif method == "test/approval":
+        approval_waiter = request_id
+        kind = message["params"]["kind"]
+        params = {
+            "threadId": "thr_test",
+            "turnId": "turn_test",
+            "itemId": "item_test",
+            "startedAtMs": 1,
+        }
+        if kind == "commandExecution":
+            params.update(
+                {
+                    "kind": "command",
+                    "environmentId": None,
+                    "command": "echo fixture",
+                    "cwd": "/fixture",
+                }
+            )
+        elif kind == "permissions":
+            params.update(
+                {"environmentId": None, "cwd": "/fixture", "reason": None, "permissions": {}}
+            )
+        send({"id": 999, "method": "item/" + kind + "/requestApproval", "params": params})
+    elif method == "initialize":
         send({"id": request_id, "result": {"serverInfo": {"name": "fake", "version": "1"}}})
     elif method == "initialized":
         continue

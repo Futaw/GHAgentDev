@@ -9,15 +9,14 @@ from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 
-from backend.app.codex import CodexAppServer
+from backend.app.codex import CodexAppServer, CodexConnectionError, CodexTimeoutError
+from backend.app.codex.client import rpc_trace_id
 from backend.app.events import EventBuffer
 from backend.app.generation.models import GenerationJobModel, GenerationStatus, ViewerModel
 from backend.app.generation.prompt import build_generation_prompt, build_schema_repair_prompt
 from backend.app.generation.security import (
+    GenerationPreflight,
     GenerationSecurityError,
-    assert_security_requirements,
-    generation_thread_config,
-    plugin_ids,
 )
 from backend.app.generation.store import GenerationStore
 from backend.app.settings import Settings
@@ -72,7 +71,7 @@ class GenerationRunner:
         self.events: dict[UUID, EventBuffer] = {}
         self.captures: dict[str, TurnCapture] = {}
         self.tasks: dict[UUID, asyncio.Task[None]] = {}
-        self._security: tuple[dict[str, object], list[str]] | None = None
+        self.inspections: dict[UUID, GenerationPreflight] = {}
         codex.add_notification_handler(self._handle_notification)
 
     def event_buffer(self, job_id: UUID) -> EventBuffer:
@@ -80,19 +79,34 @@ class GenerationRunner:
             job_id, EventBuffer(self.settings.generation_event_buffer_size)
         )
 
-    async def inspect_security(self) -> tuple[dict[str, object], list[str]]:
-        config_read, requirements, plugins = await asyncio.gather(
-            self.codex.request("config/read", {"includeLayers": True}),
-            self.codex.request("configRequirements/read", {}),
-            self.codex.request(
-                "plugin/list",
-                {"forceRefetch": False, "marketplaceKinds": ["local"]},
-            ),
-        )
-        effective = assert_security_requirements(config_read, requirements)
-        ids = plugin_ids(plugins)
-        self._security = (effective, ids)
-        return self._security
+    async def inspect_security(self) -> None:
+        if not self.codex.connected:
+            raise CodexConnectionError("Codex unavailable")
+        try:
+            await self.codex.ensure_generation_contract()
+            inspection = GenerationPreflight(self.codex, uuid4())
+            await inspection.inspect()
+            account = await self.codex.request("account/read", {"refreshToken": False})
+            inspection.assert_current()
+            if not account.get("account") and account.get("requiresOpenaiAuth", True):
+                from backend.app.codex import CodexRpcError
+
+                raise CodexRpcError(-32000, "Authentication required")
+        except CodexConnectionError:
+            raise
+        except Exception as exc:
+            from backend.app.codex import CodexRpcError
+
+            if isinstance(exc, CodexRpcError) and exc.code == -32000:
+                raise
+            LOGGER.warning(
+                "Generation baseline rejected classification=%s method=%s reason=%s trace_id=%s",
+                type(exc).__name__,
+                getattr(exc, "method", "preflight"),
+                str(exc) if isinstance(exc, GenerationSecurityError) else "rpc_failure",
+                rpc_trace_id.get(),
+            )
+            raise GenerationSecurityError("baseline_failed") from exc
 
     async def execute(
         self,
@@ -100,6 +114,7 @@ class GenerationRunner:
         repository_path: Path,
         repository_github_url: str,
     ) -> None:
+        rpc_trace_id.set(str(job_id))
         if not await self.store.set_running(job_id):
             return
         events = self.event_buffer(job_id)
@@ -108,6 +123,10 @@ class GenerationRunner:
         try:
             await events.publish("job.started", {"job_id": str(job_id), "status": "running"})
             job = await self._job(job_id)
+            if await self.refs.resolve(str(repository_path), "HEAD") != job.commit_sha:
+                raise GenerationRunError(
+                    "GENERATION_FAILED", "RepositoryのCommitが変更されました。", True
+                )
             await self.refs.create(str(repository_path), temporary_ref, job.commit_sha)
             document = await asyncio.wait_for(
                 self._generate(job, repository_path),
@@ -143,6 +162,7 @@ class GenerationRunner:
                     "HTML_SANITIZE_FAILED", "Viewer HTMLを安全に保存できませんでした。", False
                 ) from exc
             await self._cancel_point(job_id)
+            self.inspections[job_id].assert_current()
             await self._phase(job_id, "saving_viewer")
             current = await self._job(job_id)
             viewer_id = current.viewer_id or uuid4()
@@ -170,7 +190,13 @@ class GenerationRunner:
                 created_at=now,
                 updated_at=now,
             )
-            saved = await self.store.save_viewer(job_id, viewer, current.base_viewer_revision)
+            self.inspections[job_id].assert_current()
+            saved = await self.store.save_viewer(
+                job_id,
+                viewer,
+                current.base_viewer_revision,
+                safety_check=self.inspections[job_id].assert_current,
+            )
             if not saved:
                 raise GenerationRunError("VIEWER_CHANGED", "Viewerの状態が変更されました。", True)
             await self.refs.delete(str(repository_path), temporary_ref)
@@ -183,17 +209,48 @@ class GenerationRunner:
                 "job.completed", {"job_id": str(job_id), "viewer_id": str(viewer_id)}
             )
         except asyncio.CancelledError:
+            await self._stop_job(job_id)
             await self.store.mark_terminal(job_id, GenerationStatus.CANCELLED)
             await events.publish("job.cancelled", {"job_id": str(job_id)})
             raise
-        except TimeoutError:
+        except (TimeoutError, CodexTimeoutError):
+            await self._stop_job(job_id)
             await self._fail(job_id, "CODEX_TIMEOUT", "Viewer生成がタイムアウトしました。", True)
+        except GenerationSecurityError as exc:
+            LOGGER.warning(
+                "Generation safety check failed job_id=%s trace_id=%s classification=%s",
+                job_id,
+                job_id,
+                str(exc),
+            )
+            await self._stop_job(job_id)
+            await self._fail(
+                job_id,
+                "CODEX_SANDBOX_UNSUPPORTED",
+                "Codexの安全設定を確認できないため、生成を停止しました。",
+                False,
+            )
+        except CodexConnectionError:
+            await self._fail(job_id, "CODEX_UNAVAILABLE", "Codexとの接続が切断されました。", True)
         except GenerationRunError as exc:
             await self._fail(job_id, exc.code, str(exc), exc.retryable)
         except Exception:
-            LOGGER.exception("Generation failed", extra={"job_id": str(job_id)})
+            LOGGER.error("Generation failed job_id=%s trace_id=%s", job_id, job_id)
             await self._fail(job_id, "GENERATION_FAILED", "Viewerを生成できませんでした。", True)
         finally:
+            inspection = self.inspections.pop(job_id, None)
+            if inspection and inspection.thread_id and self.codex.connected:
+                try:
+                    await asyncio.wait_for(
+                        self.codex.request(
+                            "thread/unsubscribe", {"threadId": inspection.thread_id}
+                        ),
+                        timeout=5,
+                    )
+                except Exception:
+                    await self.codex.discard_connection()
+            if inspection and inspection.thread_id:
+                self.captures.pop(inspection.thread_id, None)
             await self.refs.delete(str(repository_path), temporary_ref)
             terminal = await self.store.get_job(job_id)
             if new_ref and terminal and terminal.status != "completed":
@@ -211,32 +268,18 @@ class GenerationRunner:
 
     async def _generate(self, job: GenerationJobModel, repository_path: Path):
         await self._phase(job.id, "starting_thread")
-        if self._security is None:
-            try:
-                await self.inspect_security()
-            except Exception as exc:
-                raise GenerationRunError(
-                    "CODEX_SANDBOX_UNSUPPORTED",
-                    "Codexの制限付き読み取り設定を確認できませんでした。",
-                    False,
-                ) from exc
-        effective, disabled_plugins = self._security
+        inspection = GenerationPreflight(self.codex, job.id, repository_path)
+        self.inspections[job.id] = inspection
         try:
-            config = generation_thread_config(job.id, effective)
-        except GenerationSecurityError as exc:
-            raise GenerationRunError(
-                "CODEX_SANDBOX_UNSUPPORTED", "Codexの安全設定を構成できませんでした。", False
-            ) from exc
-        thread_result = await self.codex.request(
-            "thread/start",
-            {
-                "cwd": str(repository_path),
-                "ephemeral": True,
-                "approvalPolicy": "never",
-                "config": config,
-            },
-        )
-        thread_id = thread_result["thread"]["id"]
+            thread_id = await inspection.start_thread()
+        except CodexTimeoutError as exc:
+            if exc.method == "thread/start":
+                await self.codex.discard_connection()
+            raise GenerationSecurityError("preflight_timeout") from exc
+        except CodexConnectionError:
+            raise
+        except Exception as exc:
+            raise GenerationSecurityError("thread_preflight_failed") from exc
         capture = TurnCapture(thread_id=thread_id)
         self.captures[thread_id] = capture
         await self.store.set_phase(job.id, "analyzing_repository", codex_thread_id=thread_id)
@@ -245,7 +288,7 @@ class GenerationRunner:
                 job,
                 capture,
                 build_generation_prompt(job),
-                disabled_plugins,
+                inspection,
             )
             try:
                 return parse_viewer_document(raw, self.settings.viewer_document_max_bytes)
@@ -255,7 +298,7 @@ class GenerationRunner:
                     job,
                     capture,
                     build_schema_repair_prompt(fields),
-                    disabled_plugins,
+                    inspection,
                 )
                 try:
                     return parse_viewer_document(raw, self.settings.viewer_document_max_bytes)
@@ -266,15 +309,28 @@ class GenerationRunner:
                         True,
                     ) from exc
         finally:
-            self.captures.pop(thread_id, None)
+            # On an uncertain/failed turn, stop it before removing the capture.
+            if capture.completed and (
+                capture.completed.cancelled()
+                or not capture.completed.done()
+                or capture.approval_rejected
+            ):
+                await self._stop_job(job.id)
 
     async def _turn(
         self,
         job: GenerationJobModel,
         capture: TurnCapture,
         prompt: str,
-        disabled_plugins: list[str],
+        inspection: GenerationPreflight,
     ) -> str:
+        try:
+            await inspection.recheck()
+        except CodexConnectionError:
+            raise
+        except Exception as exc:
+            raise GenerationSecurityError("turn_preflight_failed") from exc
+        capture.turn_id = None
         capture.chunks.clear()
         capture.approval_rejected = False
         capture.completed = asyncio.get_running_loop().create_future()
@@ -284,7 +340,6 @@ class GenerationRunner:
                 "threadId": capture.thread_id,
                 "input": [{"type": "text", "text": prompt}],
                 "approvalPolicy": "never",
-                "disabledPluginIds": disabled_plugins,
                 "outputSchema": viewer_document_json_schema(),
             },
         )
@@ -296,13 +351,20 @@ class GenerationRunner:
             codex_turn_id=capture.turn_id,
         )
         raw = await capture.completed
+        inspection.assert_current()
         if capture.approval_rejected:
-            raise GenerationRunError(
-                "CODEX_SANDBOX_UNSUPPORTED", "Codexが追加権限を要求しました。", False
-            )
+            raise GenerationSecurityError("permission_request_rejected")
         return raw
 
     async def _handle_notification(self, method: str, params: dict[str, Any]) -> None:
+        if method == "app_server/connected":
+            try:
+                await self.inspect_security()
+            except Exception as exc:
+                LOGGER.warning(
+                    "Generation startup baseline unavailable classification=%s", type(exc).__name__
+                )
+            return
         if method == "app_server/disconnected":
             for capture in self.captures.values():
                 if capture.completed and not capture.completed.done():
@@ -322,11 +384,22 @@ class GenerationRunner:
             for capture in captures:
                 if capture.completed and not capture.completed.done():
                     capture.approval_rejected = True
+                    capture.completed.set_exception(
+                        GenerationSecurityError("permission_request_rejected")
+                    )
             return
         thread_id = params.get("threadId")
         capture = self.captures.get(thread_id)
         if capture is None:
             return
+        if method in {"item/started", "item/completed"}:
+            item = params.get("item", {})
+            if item.get("type") not in {"agentMessage", "reasoning", "plan", "commandExecution"}:
+                self.codex.security_epoch += 1
+                capture.approval_rejected = True
+                if capture.completed and not capture.completed.done():
+                    capture.completed.set_exception(GenerationSecurityError("unexpected_tool_item"))
+                return
         turn_id = params.get("turnId") or params.get("turn", {}).get("id")
         if capture.turn_id and turn_id and capture.turn_id != turn_id:
             return
@@ -335,6 +408,16 @@ class GenerationRunner:
             if isinstance(delta, str):
                 capture.chunks.append(delta)
         elif method == "turn/completed" and capture.completed and not capture.completed.done():
+            items = params.get("turn", {}).get("items", [])
+            if not isinstance(items, list) or any(
+                not isinstance(item, dict)
+                or item.get("type") not in {"agentMessage", "reasoning", "plan", "commandExecution"}
+                for item in items
+            ):
+                self.codex.security_epoch += 1
+                capture.approval_rejected = True
+                capture.completed.set_exception(GenerationSecurityError("unexpected_tool_item"))
+                return
             status = params.get("turn", {}).get("status")
             if status == "completed" and not capture.approval_rejected:
                 capture.completed.set_result("".join(capture.chunks))
@@ -342,6 +425,30 @@ class GenerationRunner:
                 capture.completed.set_exception(
                     GenerationRunError("CODEX_TURN_FAILED", "Codexによる調査が失敗しました。", True)
                 )
+
+    async def _stop_job(self, job_id: UUID) -> None:
+        inspection = self.inspections.get(job_id)
+        capture = self.captures.get(inspection.thread_id) if inspection else None
+        if capture and self.codex.connected:
+            if not capture.turn_id:
+                await self.codex.discard_connection()
+                return
+            try:
+                await asyncio.wait_for(
+                    self.codex.request(
+                        "turn/interrupt",
+                        {
+                            "threadId": capture.thread_id,
+                            "turnId": capture.turn_id,
+                        },
+                    ),
+                    timeout=5,
+                )
+            except Exception:
+                pass
+            # An interrupt response is only acknowledgement, not proof of completion.
+            # Close the shared transport when completion was not safely observed.
+            await self.codex.discard_connection()
 
     async def _phase(self, job_id: UUID, phase: str) -> None:
         if not await self.store.set_phase(job_id, phase):
@@ -374,7 +481,12 @@ class GenerationRunner:
                 "job.failed",
                 {
                     "job_id": str(job_id),
-                    "error": {"code": code, "message": message, "retryable": retryable},
+                    "error": {
+                        "code": code,
+                        "message": message,
+                        "retryable": retryable,
+                        "trace_id": str(job_id),
+                    },
                 },
             )
 

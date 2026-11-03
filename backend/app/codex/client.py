@@ -4,27 +4,22 @@ import asyncio
 import contextlib
 import json
 import logging
-import re
+import time
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
+from pathlib import Path
 from typing import Any
 
+from backend.app.codex.contract import cli_output, verify_contract
+from backend.app.codex.policy import startup_arguments
 from backend.app.settings import Settings
 
 logger = logging.getLogger(__name__)
+PROCESS_CWD = Path(__file__).resolve().parents[3]
 
 NotificationHandler = Callable[[str, dict[str, Any]], Awaitable[None]]
 
-_SECRET_PATTERNS = (
-    re.compile(r"(?i)(access[_ -]?token|refresh[_ -]?token|authorization)[=: ]+[^\s,]+"),
-    re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE),
-)
-
-
-def _sanitize_log_line(line: str) -> str:
-    sanitized = line
-    for pattern in _SECRET_PATTERNS:
-        sanitized = pattern.sub("[REDACTED]", sanitized)
-    return sanitized
+rpc_trace_id: ContextVar[str] = ContextVar("rpc_trace_id", default="startup")
 
 
 class CodexConnectionError(RuntimeError):
@@ -60,6 +55,13 @@ class CodexAppServer:
         self._stopping = False
         self._connected = False
         self._last_error: str | None = None
+        self.rejection_count = 0
+        self.generation = 0
+        self.security_epoch = 0
+        self.contract: dict | None = None
+        self._contract_lock = asyncio.Lock()
+        self._notification_tasks: set[asyncio.Task] = set()
+        self.last_received_at: float | None = None
 
     @property
     def connected(self) -> bool:
@@ -77,7 +79,7 @@ class CodexAppServer:
         try:
             await self._connect()
         except Exception as exc:
-            self._last_error = _sanitize_log_line(str(exc))
+            self._last_error = type(exc).__name__
             logger.warning("Codex App Server initial connection failed: %s", self._last_error)
         self._supervisor_task = asyncio.create_task(self._supervise(), name="codex-supervisor")
 
@@ -103,6 +105,9 @@ class CodexAppServer:
             return_exceptions=True,
         )
         await self._handle_disconnect("Codex App Server stopped")
+        for task in tuple(self._notification_tasks):
+            task.cancel()
+        await asyncio.gather(*tuple(self._notification_tasks), return_exceptions=True)
 
     async def ensure_connected(self) -> None:
         if self.connected:
@@ -116,18 +121,42 @@ class CodexAppServer:
         request_id = self._request_id
         future: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
         self._pending[request_id] = future
+        started = time.monotonic()
+        outcome = "failed"
         try:
             await self._send({"method": method, "id": request_id, "params": params or {}})
+            logger.info(
+                "Codex request sent method=%s request_id=%s generation=%s pending=%s trace_id=%s",
+                method,
+                request_id,
+                self.generation,
+                len(self._pending),
+                rpc_trace_id.get(),
+            )
             response = await asyncio.wait_for(
                 future,
                 timeout=self._config.codex_request_timeout_seconds,
             )
+            outcome = "rpc_error" if response.get("error") else "success"
         except TimeoutError as exc:
+            outcome = "timeout"
             raise CodexTimeoutError(method) from exc
         finally:
             self._pending.pop(request_id, None)
+            logger.info(
+                "Codex request finished method=%s request_id=%s generation=%s "
+                "outcome=%s elapsed=%.3f trace_id=%s",
+                method,
+                request_id,
+                self.generation,
+                outcome,
+                time.monotonic() - started,
+                rpc_trace_id.get(),
+            )
         if error := response.get("error"):
             raise CodexRpcError(error.get("code"), error.get("message", "Codex request failed"))
+        if method == "account/logout":
+            self.security_epoch += 1
         result = response.get("result", {})
         return result if isinstance(result, dict) else {"value": result}
 
@@ -140,10 +169,16 @@ class CodexAppServer:
                 return
             if self._process and self._process.returncode is None:
                 return
+            await cli_output(
+                self._config.codex_executable,
+                startup_arguments(validation=True),
+                PROCESS_CWD,
+                self._config.codex_request_timeout_seconds,
+            )
             self._process = await asyncio.create_subprocess_exec(
                 self._config.codex_executable,
-                "app-server",
-                "--strict-config",
+                *startup_arguments(),
+                cwd=PROCESS_CWD,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -159,7 +194,7 @@ class CodexAppServer:
                             "title": self._config.codex_client_title,
                             "version": self._config.codex_client_version,
                         },
-                        "capabilities": {"experimentalApi": False},
+                        "capabilities": {"experimentalApi": True},
                     },
                 )
                 await self.notify("initialized")
@@ -169,6 +204,9 @@ class CodexAppServer:
                     process.terminate()
                     await process.wait()
                 raise
+            self.generation += 1
+            self.security_epoch += 1
+            self.contract = None
             self._connected = True
             self._last_error = None
             await self._dispatch("app_server/connected", {})
@@ -188,7 +226,7 @@ class CodexAppServer:
             try:
                 await self._connect()
             except Exception as exc:
-                self._last_error = _sanitize_log_line(str(exc))
+                self._last_error = type(exc).__name__
                 logger.warning("Codex App Server restart failed: %s", self._last_error)
 
     async def _read_stdout(self) -> None:
@@ -196,22 +234,37 @@ class CodexAppServer:
         if not process or not process.stdout:
             return
         while line := await process.stdout.readline():
+            self.last_received_at = time.monotonic()
             try:
                 message = json.loads(line)
             except json.JSONDecodeError:
-                logger.warning("Ignoring malformed JSON from Codex App Server")
+                logger.warning("Malformed Codex JSON generation=%s", self.generation)
+                continue
+            if not isinstance(message, dict):
+                logger.warning("Ignoring non-object Codex JSON generation=%s", self.generation)
                 continue
             if "id" in message and "method" not in message:
+                if type(message["id"]) is not int:
+                    logger.warning(
+                        "Ignoring invalid Codex response id generation=%s", self.generation
+                    )
+                    continue
                 future = self._pending.get(message["id"])
                 if future and not future.done():
                     future.set_result(message)
                 else:
-                    logger.warning("Ignoring response with unknown request id")
+                    logger.warning(
+                        "Ignoring late or unknown response request_id=%s generation=%s",
+                        message["id"],
+                        self.generation,
+                    )
             elif "id" in message and "method" in message:
                 await self._handle_server_request(message)
             elif method := message.get("method"):
                 params = message.get("params")
-                await self._dispatch(method, params if isinstance(params, dict) else {})
+                if method in {"account/updated", "account/login/completed"}:
+                    self.security_epoch += 1
+                self._queue_notification(method, params if isinstance(params, dict) else {})
         if process is self._process and not self._stopping:
             await self._handle_disconnect("Codex App Server closed its output stream")
 
@@ -220,11 +273,11 @@ class CodexAppServer:
         if not process or not process.stderr:
             return
         while line := await process.stderr.readline():
-            logger.info(
-                "codex app-server: %s", _sanitize_log_line(line.decode(errors="replace").rstrip())
-            )
+            # Never log raw stderr: it can contain arbitrary config, URLs or credentials.
+            logger.debug("Codex stderr received bytes=%s generation=%s", len(line), self.generation)
 
     async def _handle_server_request(self, message: dict[str, Any]) -> None:
+        self.rejection_count += 1
         method = message.get("method", "")
         request_id = message["id"]
         if method == "item/commandExecution/requestApproval":
@@ -247,11 +300,23 @@ class CodexAppServer:
                     "error": {"code": -32601, "message": "Client method is not supported"},
                 }
             )
-        logger.warning("Rejected Codex server request: %s", method)
+        category = (
+            method
+            if method
+            in {
+                "item/commandExecution/requestApproval",
+                "item/fileChange/requestApproval",
+                "item/permissions/requestApproval",
+                "execCommandApproval",
+                "applyPatchApproval",
+            }
+            else "unsupported"
+        )
+        logger.warning("Rejected Codex server request category=%s", category)
         context = message.get("params")
         details = dict(context) if isinstance(context, dict) else {}
         details["method"] = method
-        await self._dispatch("app_server/server_request_rejected", details)
+        self._queue_notification("app_server/server_request_rejected", details)
 
     async def _send(self, message: dict[str, Any]) -> None:
         process = self._process
@@ -263,21 +328,71 @@ class CodexAppServer:
             await process.stdin.drain()
 
     async def _handle_disconnect(self, reason: str) -> None:
+        logger.info(
+            "Codex disconnected generation=%s pending=%s exit_code=%s last_received=%s",
+            self.generation,
+            len(self._pending),
+            self._process.returncode if self._process else None,
+            self.last_received_at,
+        )
         was_connected = self._connected
         self._connected = False
+        self.security_epoch += 1
+        self.contract = None
         self._last_error = reason
         for future in tuple(self._pending.values()):
             if not future.done():
                 future.set_exception(CodexConnectionError(reason))
         self._pending.clear()
         if was_connected:
-            await self._dispatch("app_server/disconnected", {"reason": reason})
+            self._queue_notification("app_server/disconnected", {"reason": reason})
+
+    async def ensure_generation_contract(self) -> None:
+        async with self._contract_lock:
+            generation = self.generation
+            if self.contract is None:
+                contract = await verify_contract(
+                    self._config.codex_executable,
+                    PROCESS_CWD,
+                    self._config.codex_request_timeout_seconds,
+                )
+                if not self.connected or generation != self.generation:
+                    raise CodexConnectionError("Connection changed during contract inspection")
+                self.contract = contract
+
+    async def discard_connection(self) -> None:
+        process = self._process
+        await self._handle_disconnect("Codex connection discarded")
+        if process and process.returncode is None:
+            process.kill()
+            await process.wait()
+
+    def _queue_notification(self, method: str, params: dict[str, Any]) -> None:
+        generation = self.generation
+
+        async def deliver() -> None:
+            if generation == self.generation:
+                await self._dispatch(method, params)
+
+        task = asyncio.create_task(deliver())
+        self._notification_tasks.add(task)
+        task.add_done_callback(self._notification_tasks.discard)
 
     async def _dispatch(self, method: str, params: dict[str, Any]) -> None:
+        started = time.monotonic()
+        logger.debug("Codex notification started method=%s generation=%s", method, self.generation)
         results = await asyncio.gather(
             *(handler(method, params) for handler in tuple(self._handlers)),
             return_exceptions=True,
         )
+        logger.debug(
+            "Codex notification completed method=%s generation=%s elapsed=%.3f",
+            method,
+            self.generation,
+            time.monotonic() - started,
+        )
         for result in results:
             if isinstance(result, Exception):
-                logger.error("Codex notification handler failed: %s", result)
+                logger.error(
+                    "Codex notification handler failed classification=%s", type(result).__name__
+                )

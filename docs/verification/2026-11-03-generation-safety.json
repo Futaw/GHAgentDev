@@ -1,0 +1,116 @@
+{
+  "behavior_gate": false,
+  "failed_check": "protocol_config",
+  "failure": "GenerationSecurityError",
+  "fixture_cleanup": "passed",
+  "gates": {
+    "additional_permissions": {
+      "evidence": "real_cli",
+      "reason": "preceding_gate_not_passed",
+      "status": "not_run"
+    },
+    "command_network": {
+      "evidence": "real_cli",
+      "reason": "reachable_controls_and_os_denials",
+      "status": "passed"
+    },
+    "external_tools": {
+      "evidence": "real_cli",
+      "reason": "preceding_gate_not_passed",
+      "status": "not_run"
+    },
+    "fixture_integrity": {
+      "evidence": "real_cli",
+      "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+      "status": "passed"
+    },
+    "non_modification": {
+      "evidence": "real_cli",
+      "reason": "os_mutation_probes",
+      "status": "passed"
+    },
+    "protocol_config": {
+      "evidence": "real_cli",
+      "reason": "shell_environment_merge",
+      "status": "failed"
+    },
+    "real_turn": {
+      "evidence": "real_cli",
+      "reason": "preceding_gate_not_passed",
+      "status": "not_run"
+    },
+    "sandbox_read": {
+      "evidence": "real_cli",
+      "reason": "outside_read_succeeded",
+      "status": "failed"
+    }
+  },
+  "git_status_unchanged": true,
+  "isolated_protocol": {
+    "evidence": "real_cli",
+    "reason": "canonical_profile_runtime_checked",
+    "status": "passed"
+  },
+  "os": "macOS-26.6.2-arm64-arm-64bit",
+  "parent_network_control": "passed",
+  "parent_read_control": "passed",
+  "policy_version": "repospec-generation-v1.3-1",
+  "probe_results": {
+    "allowed": {
+      "sha256": "13f3d8a031aaf5f6c4cc54b0e55fe51c567a290c80ddcda4f17e20f6df6fa9f9",
+      "status": "read"
+    },
+    "auth_sentinel": {
+      "sha256": "c27bd401db75e2095d73ac45c10c020628f9862b351f364b1f00717ec4aa05fc",
+      "status": "read"
+    },
+    "create": {
+      "errno": 1,
+      "status": "error"
+    },
+    "delete": {
+      "errno": 1,
+      "status": "error"
+    },
+    "git_write": {
+      "errno": 1,
+      "status": "error"
+    },
+    "loopback": {
+      "errno": 1,
+      "status": "error"
+    },
+    "outside": {
+      "sha256": "61380619e59ee359870e56ca11e3228ac957371d06ce67e2306579f16f3875f4",
+      "status": "read"
+    },
+    "public": {
+      "errno": 1,
+      "status": "error"
+    },
+    "rename": {
+      "errno": 1,
+      "status": "error"
+    },
+    "sibling": {
+      "sha256": "7db37811b3790b23227dfc2a1f64d4c8757bc6eedf89aa9eb71e10230f167226",
+      "status": "read"
+    },
+    "update": {
+      "errno": 1,
+      "status": "error"
+    }
+  },
+  "protocol_config_gate": false,
+  "real_approval_request": "not_observed",
+  "reason": "shell_environment_merge",
+  "schema_hashes": {
+    "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+    "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+  },
+  "thread_turn_schema_hashes": {
+    "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+    "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+  },
+  "version": "codex-cli 0.164.0"
+}

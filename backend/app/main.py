@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -22,8 +23,10 @@ from backend.app.codex import (
     CodexRpcError,
     CodexTimeoutError,
 )
+from backend.app.codex.client import rpc_trace_id
 from backend.app.db import Database
 from backend.app.generation.runner import GenerationRunner
+from backend.app.generation.security import GenerationSecurityError
 from backend.app.generation.service import (
     GenerationAlreadyRunningError,
     GenerationDisabledError,
@@ -133,13 +136,35 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):  # type: ignore[no-untyped-def]
-        response = await call_next(request)
+        context_token = rpc_trace_id.set(_trace_id(request))
+        try:
+            response = await call_next(request)
+        finally:
+            rpc_trace_id.reset(context_token)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; "
             "img-src 'self' data:; connect-src 'self'; object-src 'none'; "
             "base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
         )
         return response
+
+    @app.exception_handler(GenerationSecurityError)
+    async def generation_security_handler(
+        request: Request, exc: GenerationSecurityError
+    ) -> JSONResponse:
+        logger.warning(
+            "Generation safety inspection rejected trace_id=%s classification=%s",
+            _trace_id(request),
+            str(exc),
+        )
+        return _problem(
+            request,
+            503,
+            "Generation safety check failed",
+            "Codexの安全設定を確認できないため、生成を開始しませんでした。",
+            "CODEX_SANDBOX_UNSUPPORTED",
+            False,
+        )
 
     @app.exception_handler(GenerationDisabledError)
     async def generation_disabled_handler(
@@ -374,7 +399,8 @@ def _problem(
 def _trace_id(request: Request) -> str:
     trace_id = getattr(request.state, "trace_id", None)
     if trace_id is None:
-        trace_id = request.headers.get("X-Trace-ID") or str(uuid4())
+        supplied = request.headers.get("X-Trace-ID", "")
+        trace_id = supplied if re.fullmatch(r"[A-Za-z0-9_-]{1,128}", supplied) else str(uuid4())
         request.state.trace_id = trace_id
     return trace_id
 
