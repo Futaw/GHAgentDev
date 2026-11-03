@@ -62,3 +62,16 @@ describe('Viewer', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('regenerate'))).toBe(false)
   })
 })
+
+it('keeps the existing Viewer and displays a regeneration safety failure', async () => {
+  const user = userEvent.setup()
+  const fetchMock = vi.spyOn(globalThis, 'fetch')
+    .mockResolvedValueOnce(new Response(JSON.stringify(viewer), { status: 200 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'CODEX_SANDBOX_UNSUPPORTED', detail: '安全な説明', trace_id: 'regenerate-trace' }), { status: 503 }))
+  renderPage()
+  await screen.findByRole('heading', { name: 'Viewer title' })
+  await user.click(screen.getByRole('button', { name: '再生成' }))
+  expect(await screen.findByText('regenerate-trace')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Viewer title' })).toBeInTheDocument()
+  expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+})

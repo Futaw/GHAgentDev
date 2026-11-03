@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -209,6 +210,8 @@ class GenerationStore:
         job_id: UUID,
         viewer: ViewerModel,
         base_revision: int | None,
+        *,
+        safety_check: Callable[[], None] | None = None,
     ) -> bool:
         now = datetime.now(UTC)
         async with self.sessions() as session:
@@ -219,6 +222,8 @@ class GenerationStore:
                 or job.cancel_requested_at is not None
             ):
                 return False
+            if safety_check:
+                safety_check()
             if base_revision is None:
                 session.add(viewer)
             else:
@@ -247,6 +252,9 @@ class GenerationStore:
             job.current_phase = "completed"
             job.completed_at = now
             job.updated_at = now
+            await session.flush()
+            if safety_check:
+                safety_check()
             await session.commit()
             return True
 

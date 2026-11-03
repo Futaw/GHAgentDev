@@ -1,3 +1,4 @@
+import { GenerationError } from './GenerationError'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -22,7 +23,7 @@ export function GenerationJobPage() {
     refetchInterval: (query) => query.state.data && ['queued', 'running'].includes(query.state.data.status) ? 5_000 : false,
   })
   const cancel = useMutation({ mutationFn: () => cancelGenerationJob(jobId), onSuccess: (value) => queryClient.setQueryData(['generation-jobs', jobId], value) })
-  const retry = useMutation({ mutationFn: () => retryGenerationJob(jobId, key.current), onSuccess: (value) => navigate(`/jobs/${value.id}`) })
+  const retry = useMutation({ retry: false, mutationFn: () => retryGenerationJob(jobId, key.current), onSuccess: (value) => navigate(`/jobs/${value.id}`) })
   const jobStatus = job.data?.status
   const eventsUrl = job.data?.events_url
 
@@ -57,10 +58,11 @@ export function GenerationJobPage() {
       {['queued', 'running'].includes(value.status) && <p className="muted">SSE: {connection === 'connected' ? '接続中' : '再接続中'}。RESTでも5秒ごとに状態を確認しています。</p>}
       <ol className="phase-list">{phases.map((phase, phaseIndex) => <li key={phase} className={phaseIndex < index ? 'done' : phaseIndex === index ? 'active' : ''}>{labels[phase]}</li>)}</ol>
       {paths.length > 0 && <div><h2>検証済みソース</h2><ul>{paths.map((path) => <li className="mono" key={path}>{path}</li>)}</ul></div>}
-      {value.error && <div className="error-card" role="alert"><strong>{value.error.code}</strong><p>{value.error.message}</p></div>}
+      {value.error && <GenerationError failure={value.error} />}
+      {retry.isError && <GenerationError error={retry.error} />}
       <div className="form-actions">
         {['queued', 'running'].includes(value.status) && <button className="stop" disabled={cancel.isPending} onClick={() => cancel.mutate()}>中止</button>}
-        {['failed', 'cancelled'].includes(value.status) && <button className="primary" disabled={retry.isPending || value.error?.retryable === false} onClick={() => retry.mutate()}>同じ条件で再試行</button>}
+        {['failed', 'cancelled'].includes(value.status) && value.error?.retryable !== false && <button className="primary" disabled={retry.isPending} onClick={() => retry.mutate()}>同じ条件で再試行</button>}
         {value.viewer_id && <Link className="primary button" to={`/viewers/${value.viewer_id}`}>Viewerを開く</Link>}
       </div>
     </section>

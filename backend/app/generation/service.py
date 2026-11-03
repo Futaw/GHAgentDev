@@ -283,6 +283,7 @@ class GenerationService:
     async def _persist_and_schedule(
         self, job: GenerationJobModel, workspace_key: str, github_url: str
     ) -> GenerationJobModel:
+        await self.runner.inspect_security()
         try:
             await self.store.create_job(job)
         except GenerationReservationError as exc:

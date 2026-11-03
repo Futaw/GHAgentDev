@@ -61,7 +61,12 @@ class ViewerGitRefs:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        stdout, _ = await process.communicate()
+        try:
+            stdout, _ = await process.communicate()
+        finally:
+            if process.returncode is None:
+                process.kill()
+                await process.communicate()
         if process.returncode != 0:
             raise GitRefError("Git ref operation failed")
         return stdout

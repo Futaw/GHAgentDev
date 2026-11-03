@@ -62,7 +62,7 @@ export type GenerationJob = {
   current_phase: string
   started_at: string | null
   completed_at: string | null
-  error: { code: string; message: string; retryable: boolean } | null
+  error: { code: string; message: string; retryable: boolean; trace_id: string } | null
   created_at: string
   updated_at: string
   events_url: string
