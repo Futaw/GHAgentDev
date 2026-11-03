@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.7
-- 更新日: 2026-10-22
+- 文書バージョン: v0.8
+- 更新日: 2026-10-30
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -218,6 +218,8 @@ Chatを初めて開いたときのSession作成は1回だけ自動実行する�
 
 送信成功時はGeneration Jobを作成し、`/jobs/:jobId`へ遷移する。二重送信を防止し、バックエンドのvalidation errorを各項目へ対応づけて表示する。
 
+送信失敗時は入力を保持し、既存のProblem Detailsから`code / detail / trace_id`を表示する。`GENERATION_DISABLED`は生成無効、`CODEX_UNAVAILABLE`はCodex未接続、`CODEX_SANDBOX_UNSUPPORTED`は安全設定確認失敗として区別し、固定の「Viewer生成を開始できませんでした。」だけを表示しない。生成無効・安全設定確認失敗は自動再試行せず、接続失敗も利用者の明示操作で再試行する。再生成・Job再試行にも適用する。文言とAPIの分類は[Phase 2詳細設計16.2](./phase-2-detailed-design.md#162-viewer作成フォーム)に従う。この表示改善は次の実装修正で行う。
+
 ### 6.2 Generation Progress
 
 - Job全体の状態: `queued | running | completed | failed | cancelled`
@@ -331,7 +333,8 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 | App Server停止 | 接続エラーと再接続を表示 |
 | 利用上限 | 一般エラーと区別し、時間を置いて再試行するよう案内 |
 | SSE切断 | 自動再接続中と表示し、失敗時はJob/Turn状態をRESTで再取得 |
-| Generation失敗 | 保存済み条件での再試行を提供 |
+| Generation受付失敗 | 生成無効・Codex未接続・安全設定確認失敗をcodeとtrace IDで区別し、入力を保持 |
+| Generation失敗 | `error_retryable=true`の場合だけ保存済み条件での再試行を提供 |
 | 削除失敗 | Viewerを一覧から消さずエラーを表示 |
 | Repository削除失敗 | Dashboardを維持し、GitHub上のRepositoryは変更されていないことを伝えて再試行を案内 |
 
