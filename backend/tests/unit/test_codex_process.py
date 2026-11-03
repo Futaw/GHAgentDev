@@ -233,3 +233,61 @@ async def test_timeout_does_not_stop_an_independent_session(tmp_path):
     finally:
         sentry.kill()
         await asyncio.wait_for(sentry.wait(), 1)
+
+
+@pytest.mark.asyncio
+async def test_terminal_caller_cannot_make_rm_wait_for_confirmation(tmp_path):
+    """A TTY caller must not leak its input device into noninteractive commands."""
+    import json
+    import pty
+
+    if os.geteuid() == 0:
+        pytest.skip("root can bypass the write-access check used by rm's prompt")
+    target = tmp_path / "non-sensitive-readonly.txt"
+    target.write_text("disposable fixture")
+    target.chmod(0o444)
+    project_root = await asyncio.to_thread(lambda: Path(__file__).resolve().parents[3])
+    script = """
+import asyncio, json, os, sys
+from pathlib import Path
+from backend.app.codex.process import CommandTimeout, run_command
+async def main():
+    root = Path(sys.argv[1])
+    try:
+        result = await run_command('/bin/rm', [str(root/'non-sensitive-readonly.txt')], root, .5)
+        report = {'returncode': result.returncode, 'cleanup':result.cleanup}
+    except CommandTimeout as exc:
+        report = {'timeout': True, 'cleanup':exc.cleanup}
+    report['caller_stdin_is_terminal'] = os.isatty(0)
+    print(json.dumps(report))
+asyncio.run(main())
+"""
+    master, slave = pty.openpty()
+    process = None
+    try:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            script,
+            str(tmp_path),
+            cwd=project_root,
+            stdin=slave,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
+        )
+        stdout, _ = await asyncio.wait_for(process.communicate(), 4)
+        assert process.returncode == 0
+        report = json.loads(stdout)
+        assert report["caller_stdin_is_terminal"] is True
+        assert not report.get("timeout"), report
+        assert report["returncode"] == 0
+        assert report["cleanup"]["status"] == "passed"
+        assert not target.exists()
+        assert_gone(report["cleanup"]["pid"])
+    finally:
+        os.close(slave)
+        os.close(master)
+        if process and process.returncode is None:
+            process.kill()
+            await asyncio.wait_for(process.wait(), 1)

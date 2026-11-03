@@ -102,3 +102,8 @@ Backend全132テスト、Ruff check/format、`git diff --check`が成功。Front
 過去の停止時の最終pipe保持者・削除probe停滞原因は未特定。今回の実Codexでのtimeout後cleanupは、同じ停止が再現しなかったため実測していない。無害なプロセスの再現testでの証拠と区別する。
 
 範囲外読取りの修正、shell環境の隔離設計、認証付き実Turn、実Viewer保存、実RPC承認拒否、実Codex Chat操作の回帰は未完了。既存のPostgreSQL・ブラウザ手動確認の未完了も継続する。全必須gateがpassedになるまでは生成を有効化しない。
+
+
+## 2026-11-04の追加調査
+
+利用者の端末実行で削除probeのtimeoutが再現した。疑似端末と非端末stdinの比較によりrmの確認入力待ちを再現し、非対話コマンドのstdin継承を止める修正を行った。利用者観測、因果関係を確認した比較、修正後の端末実行は[追補記録](./2026-11-04-verification-stdin.md)を参照する。読み取り範囲とshell環境の課題は継続し、生成は無効のままとする。
