@@ -10,10 +10,12 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 import os
 import platform
 import shlex
 import socket
+import sys
 import tempfile
 from pathlib import Path
 from uuid import uuid4
@@ -21,6 +23,7 @@ from uuid import uuid4
 from backend.app.codex.client import CodexAppServer
 from backend.app.codex.contract import cli_output, verify_contract
 from backend.app.codex.policy import DISABLED_FEATURES, POLICY_VERSION
+from backend.app.codex.process import CommandTimeout, ProcessCleanupError, run_command
 from backend.app.generation.security import GenerationPreflight, generation_thread_config
 from backend.app.settings import Settings
 
@@ -40,6 +43,13 @@ OUTPUT_SCHEMA = {
     "required": ["allowed_content"],
     "additionalProperties": False,
 }
+
+
+def progress(check: str, event: str, details: dict | None = None) -> None:
+    # Callers supply fixed labels and numeric lifecycle facts only, never command output.
+    print(
+        json.dumps({"check": check, "event": event, **(details or {})}), file=sys.stderr, flush=True
+    )
 
 
 def outcome(status: str, reason: str, evidence: str = "real_cli") -> dict:
@@ -75,65 +85,50 @@ def denied(observed: object) -> bool:
     )
 
 
-def assess_probes(observed: object, expected_hash: str, network_control: bool) -> dict:
-    expected = {
-        "allowed",
-        "sibling",
-        "outside",
-        "auth_sentinel",
-        "update",
-        "create",
-        "delete",
-        "rename",
-        "git_write",
-        "loopback",
-        "public",
+def assess_probes(
+    observed: object, expected_hash: str, network_control: bool, deletion_control: bool = True
+) -> dict:
+    groups = {
+        "sandbox_read": ("sibling", "outside", "auth_sentinel"),
+        "non_modification": ("update", "create", "delete", "rename", "git_write"),
+        "command_network": ("loopback", "public"),
     }
-    if (
-        not isinstance(observed, dict)
-        or set(observed) != expected
-        or not all(isinstance(v, dict) for v in observed.values())
-    ):
-        return {
-            key: outcome("inconclusive", "probe_evidence_missing")
-            for key in ("sandbox_read", "non_modification", "command_network")
-        }
-    positive = observed["allowed"] == {"status": "read", "sha256": expected_hash}
-    result = {}
-    blocked = [observed[name] for name in ("sibling", "outside", "auth_sentinel")]
-    result["sandbox_read"] = outcome(
-        "failed"
-        if any(v.get("status") == "read" for v in blocked)
-        else "passed"
-        if positive and all(denied(v) for v in blocked)
-        else "inconclusive",
-        "outside_read_succeeded"
-        if any(v.get("status") == "read" for v in blocked)
-        else "positive_read_and_os_denials"
-        if positive
-        else "allowed_probe_not_executed",
+    if not isinstance(observed, dict) or not all(isinstance(v, dict) for v in observed.values()):
+        observed = {}
+    allowed = observed.get("allowed", {})
+    positive = (
+        allowed.get("status") == "read"
+        and allowed.get("sha256") == expected_hash
+        and allowed.get("cleanup", {}).get("status", "passed") == "passed"
     )
-    changes = [observed[name] for name in ("update", "create", "delete", "rename", "git_write")]
-    result["non_modification"] = outcome(
-        "failed"
-        if any(v.get("status") == "changed" for v in changes)
-        else "passed"
-        if positive and all(denied(v) for v in changes)
-        else "inconclusive",
-        "os_mutation_probes",
-    )
-    network = [observed[name] for name in ("loopback", "public")]
-    result["command_network"] = outcome(
-        "failed"
-        if any(v.get("status") == "connected" for v in network)
-        else "passed"
-        if positive and network_control and all(denied(v) for v in network)
-        else "inconclusive",
-        "reachable_controls_and_os_denials"
-        if network_control
-        else "parent_network_control_unavailable",
-    )
-    return result
+    results = {}
+    for gate, names in groups.items():
+        rows = [observed.get(name, {}) for name in names]
+        violation = (
+            "read"
+            if gate == "sandbox_read"
+            else ("changed" if gate == "non_modification" else "connected")
+        )
+        if any(row.get("status") == violation for row in rows):
+            results[gate] = outcome(
+                "failed",
+                "outside_read_succeeded"
+                if gate == "sandbox_read"
+                else "prohibited_operation_succeeded",
+            )
+        elif (
+            positive
+            and all(
+                denied(row) and row.get("cleanup", {}).get("status", "passed") == "passed"
+                for row in rows
+            )
+            and (gate != "command_network" or network_control)
+            and (gate != "non_modification" or deletion_control)
+        ):
+            results[gate] = outcome("passed", "positive_control_and_os_denials")
+        else:
+            results[gate] = outcome("inconclusive", "probe_evidence_missing_or_unconfirmed")
+    return results
 
 
 async def native_probes(
@@ -143,29 +138,73 @@ async def native_probes(
     repository: Path,
     spec: dict,
     timeout_seconds: float,
+    *,
+    selected: set[str] | None = None,
+    observed: dict | None = None,
 ) -> dict:
     """Use platform commands without adding interpreter roots to the canonical Profile."""
-    observed = {}
+    observed = observed if observed is not None else {}
 
-    async def probe(command: list[str]) -> tuple[int, bytes, bytes]:
-        process = await asyncio.create_subprocess_exec(
-            executable,
-            *args,
-            "/usr/bin/env",
-            "-i",
-            "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
-            *command,
-            cwd=root,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+    async def probe(name: str, command: list[str], success: str) -> dict:
+        if selected is not None and name not in selected:
+            return {"status": "not_run"}
+        marker = b"repospec_probe_command_started\n"
         try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout_seconds)
-            return process.returncode, stdout, stderr
-        finally:
-            if process.returncode is None:
-                process.kill()
-                await process.communicate()
+            result = await run_command(
+                executable,
+                [
+                    *args,
+                    "/usr/bin/env",
+                    "-i",
+                    "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
+                    "/bin/sh",
+                    "-c",
+                    'printf "repospec_probe_command_started\\n" >&2; exec "$@"',
+                    "probe",
+                    *command,
+                ],
+                root,
+                timeout_seconds,
+                progress=lambda event, details: progress(name, event, details),
+            )
+            stderr = result.stderr
+            if marker not in stderr:
+                row = {
+                    "status": "unavailable",
+                    "reason": "command_not_started",
+                    "exit_code": result.returncode,
+                }
+            else:
+                stderr = stderr.replace(marker, b"")
+                row = classify(result.returncode, stderr, success)
+                if (
+                    success == "connected"
+                    and row["status"] == "error"
+                    and (b"Immediate connect fail" not in stderr)
+                ):
+                    row = {"status": "unavailable", "exit_code": result.returncode}
+                if success == "read" and result.returncode == 0:
+                    row["sha256"] = hashlib.sha256(result.stdout).hexdigest()
+                if success == "connected" and b"Connected to " in stderr:
+                    row = {"status": "connected"}
+            row["cleanup"] = result.cleanup
+        except (CommandTimeout, ProcessCleanupError) as exc:
+            row = {
+                "status": "timeout" if isinstance(exc, CommandTimeout) else "unavailable",
+                "cleanup": exc.cleanup,
+            }
+        except Exception as exc:
+            row = {"status": "unavailable", "reason": "execution_failed"}
+            if hasattr(exc, "cleanup"):
+                row["cleanup"] = exc.cleanup
+            elif isinstance(exc, OSError):
+                row["reason"] = "start_failed"
+        except asyncio.CancelledError as exc:
+            observed[name] = {"status": "interrupted", "cleanup": getattr(exc, "cleanup", {})}
+            raise
+        observed[name] = row
+        progress(name, "result", {"status": row["status"]})
+        return row
 
     def classify(code: int, stderr: bytes, success: str) -> dict:
         if code == 0:
@@ -175,11 +214,7 @@ async def native_probes(
         return {"status": "unavailable", "exit_code": code}
 
     for name, path in spec["reads"].items():
-        code, stdout, stderr = await probe(["/bin/cat", path])
-        row = classify(code, stderr, "read")
-        if code == 0:
-            row["sha256"] = hashlib.sha256(stdout).hexdigest()
-        observed[name] = row
+        await probe(name, ["/bin/cat", path], "read")
     commands = {
         "update": [
             "/bin/sh",
@@ -196,10 +231,10 @@ async def native_probes(
         ],
     }
     for name, command in commands.items():
-        code, _, stderr = await probe(command)
-        observed[name] = classify(code, stderr, "changed")
+        await probe(name, command, "changed")
     for name, (host, port) in spec["network"].items():
-        code, _, stderr = await probe(
+        row = await probe(
+            name,
             [
                 "/usr/bin/curl",
                 "--noproxy",
@@ -210,16 +245,13 @@ async def native_probes(
                 "6",
                 "-v",
                 "http://" + host + ":" + str(port) + "/",
-            ]
+            ],
+            "connected",
         )
-        if b"Connected to " in stderr or code == 0:
-            observed[name] = {"status": "connected"}
-        elif b"Immediate connect fail" in stderr and (
-            b"Operation not permitted" in stderr or b"Permission denied" in stderr
-        ):
-            observed[name] = {"status": "error", "errno": 1}
-        else:
-            observed[name] = {"status": "unavailable", "exit_code": code}
+        # curl only proves an OS denial when the connect itself was refused by the OS.
+        # Nonzero unrelated launch/runtime errors remain unavailable.
+        if row.get("status") == "error" and row.get("errno") not in {1, 13}:
+            row["status"] = "unavailable"
     return observed
 
 
@@ -327,7 +359,33 @@ async def verify(arguments: argparse.Namespace) -> dict:
         "real_approval_request": "not_observed",
     }
     old_home = os.environ.get("CODEX_HOME")
-    current_check = "contract"
+    try:
+        return await _verify(arguments, report)
+    except (Exception, asyncio.CancelledError) as exc:
+        report["failure"] = type(exc).__name__
+        report["failed_check"] = report.get("current_check", "fixture_setup")
+        report["interrupted"] = isinstance(exc, asyncio.CancelledError)
+        report["protocol_config_gate"] = False
+        report["behavior_gate"] = False
+        report["fixture_cleanup"] = report.get("fixture_cleanup", "unconfirmed")
+        report["process_cleanup"] = (
+            "failed" if getattr(exc, "cleanup", {}).get("status") == "failed" else "unconfirmed"
+        )
+        return report
+    finally:
+        if old_home is None:
+            os.environ.pop("CODEX_HOME", None)
+        else:
+            os.environ["CODEX_HOME"] = old_home
+
+
+async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
+    report["scope"] = getattr(arguments, "only", None) or "full"
+    report["partial"] = report["scope"] != "full"
+    old_home = os.environ.get("CODEX_HOME")
+    current_check = "fixture_setup"
+    report["current_check"] = current_check
+    progress(current_check, "start")
     with tempfile.TemporaryDirectory(prefix="repospec-gate-", dir="/private/tmp") as directory:
         root = await asyncio.to_thread(Path(directory).resolve)
         repository = root / "repository"
@@ -393,12 +451,18 @@ async def verify(arguments: argparse.Namespace) -> dict:
         (home / "config.toml").write_text(
             "[projects." + json.dumps(str(repository)) + ']\ntrust_level="trusted"\n'
         )
+        if report["scope"] == "shell-merge":
+            with (home / "config.toml").open("a") as file:
+                file.write('\n[shell_environment_policy.set]\nREPOSPEC_HARMLESS_CANARY="fixture"\n')
         protected.append(home / "config.toml")
         before = snapshot(protected)
         before_git_status = await git("status", "--porcelain")
         listener = socket.socket()
         codex = None
         try:
+            current_check = "parent_controls"
+            report["current_check"] = current_check
+            progress(current_check, "start")
             # Controls execute in the parent, so an outer network block cannot pass the gate.
             listener.bind(("127.0.0.1", 0))
             listener.listen(8)
@@ -433,6 +497,7 @@ async def verify(arguments: argparse.Namespace) -> dict:
             )
             report["parent_read_control"] = "passed"
             report["parent_network_control"] = "passed" if network_control else "inconclusive"
+            progress(current_check, "complete")
             os.environ["CODEX_HOME"] = str(home)
             settings = Settings(
                 _env_file=None,
@@ -441,7 +506,18 @@ async def verify(arguments: argparse.Namespace) -> dict:
                 test_chat_workspace=repository,
                 codex_request_timeout_seconds=arguments.timeout,
             )
-            report.update(await verify_contract(arguments.codex, root, arguments.timeout))
+            current_check = "contract"
+            report["current_check"] = current_check
+            progress(current_check, "start")
+            report.update(
+                await verify_contract(
+                    arguments.codex,
+                    root,
+                    arguments.timeout,
+                    progress=lambda event, details: progress("contract", event, details),
+                )
+            )
+            progress(current_check, "complete")
             job_id = uuid4()
             config = generation_thread_config(job_id, {"mcp_servers": {}})
             profile = config["default_permissions"]
@@ -454,6 +530,7 @@ async def verify(arguments: argparse.Namespace) -> dict:
             ):
                 raise RuntimeError("sandbox_contract_missing")
             current_check = "deterministic_sandbox"
+            report["current_check"] = current_check
             args = [
                 "sandbox",
                 "--permission-profile",
@@ -468,60 +545,114 @@ async def verify(arguments: argparse.Namespace) -> dict:
             # The sandbox command also receives fixed feature overrides for the challenge config.
             for feature in DISABLED_FEATURES:
                 args[-1:-1] = ["--disable", feature]
-            observed = await native_probes(
-                arguments.codex, args, root, repository, spec, arguments.timeout
-            )
-            report["probe_results"] = observed
+            observed = report.setdefault("probe_results", {})
+            scope = report["scope"]
+            if scope in {"full", "deletion", "reads"}:
+                if scope in {"full", "deletion"}:
+                    current_check = "delete_control"
+                    report["current_check"] = current_check
+                    control = root / "delete-control.txt"
+                    control.write_text("disposable deletion control")
+                    result = await run_command(
+                        "/bin/rm",
+                        [str(control)],
+                        root,
+                        arguments.timeout,
+                        progress=lambda event, details: progress("delete_control", event, details),
+                    )
+                    report["delete_control"] = {
+                        "status": "passed"
+                        if result.returncode == 0 and not control.exists()
+                        else "failed",
+                        "cleanup": result.cleanup,
+                    }
+                current_check = "deterministic_sandbox"
+                report["current_check"] = current_check
+                selected = (
+                    {"allowed", "delete"}
+                    if scope == "deletion"
+                    else set(spec["reads"])
+                    if scope == "reads"
+                    else None
+                )
+                await native_probes(
+                    arguments.codex,
+                    args,
+                    root,
+                    repository,
+                    spec,
+                    arguments.timeout,
+                    selected=selected,
+                    observed=observed,
+                )
             report["gates"].update(
                 assess_probes(
-                    observed, hashlib.sha256(content.encode()).hexdigest(), network_control
+                    observed,
+                    hashlib.sha256(content.encode()).hexdigest(),
+                    network_control,
+                    report.get("delete_control", {}).get("status") == "passed",
                 )
             )
-            # Isolated unauthenticated smoke check; separate from the real user gate.
-            current_check = "isolated_protocol"
-            codex = CodexAppServer(settings)
-            await codex.start()
-            if not codex.connected:
-                raise RuntimeError("isolated_connection_failed")
-            inspection = GenerationPreflight(codex, uuid4(), repository)
-            await inspection.start_thread()
-            if marker.exists():
-                raise RuntimeError("mcp_canary_started")
-            report["isolated_protocol"] = outcome("passed", "canonical_profile_runtime_checked")
-            await codex.request("thread/unsubscribe", {"threadId": inspection.thread_id})
-            await codex.stop()
-            codex = None
-            if old_home is None:
-                os.environ.pop("CODEX_HOME", None)
-            else:
-                os.environ["CODEX_HOME"] = old_home
-            current_check = "protocol_config"
-            codex = CodexAppServer(settings)
-            await codex.start()
-            if not codex.connected:
-                raise RuntimeError("connection_failed")
-            await codex.ensure_generation_contract()
-            inspection = GenerationPreflight(codex, uuid4(), repository)
-            await inspection.start_thread()
-            report["gates"]["protocol_config"] = outcome(
-                "passed", "cwd_config_requirements_thread_runtime_checked"
-            )
-            account = await codex.request("account/read", {"refreshToken": False})
-            if not account.get("account") and account.get("requiresOpenaiAuth", True):
-                report["gates"]["real_turn"] = outcome(
-                    "inconclusive", "authentication_unavailable", "real_turn"
+            if scope in {"full", "protocol", "shell-merge"}:
+                # Isolated unauthenticated smoke check; separate from the real user gate.
+                current_check = "isolated_protocol"
+                report["current_check"] = current_check
+                progress(current_check, "start")
+                codex = CodexAppServer(settings)
+                await codex.start()
+                if not codex.connected:
+                    raise RuntimeError("isolated_connection_failed")
+                inspection = GenerationPreflight(codex, uuid4(), repository)
+                await inspection.start_thread()
+                if marker.exists():
+                    raise RuntimeError("mcp_canary_started")
+                report["isolated_protocol"] = outcome("passed", "canonical_profile_runtime_checked")
+                await codex.request("thread/unsubscribe", {"threadId": inspection.thread_id})
+                await codex.stop()
+                codex = None
+                if old_home is None:
+                    os.environ.pop("CODEX_HOME", None)
+                else:
+                    os.environ["CODEX_HOME"] = old_home
+                progress(current_check, "complete")
+                current_check = "protocol_config"
+                report["current_check"] = current_check
+                progress(current_check, "start")
+                codex = CodexAppServer(settings)
+                await codex.start()
+                if not codex.connected:
+                    raise RuntimeError("connection_failed")
+                await codex.ensure_generation_contract()
+                inspection = GenerationPreflight(codex, uuid4(), repository)
+                await inspection.start_thread()
+                report["gates"]["protocol_config"] = outcome(
+                    "passed", "cwd_config_requirements_thread_runtime_checked"
                 )
-            else:
-                current_check = "real_turn"
-                results = await real_turn(codex, inspection, repository, content, arguments.timeout)
-                for key, value in results.items():
-                    if key in GATES:
-                        report["gates"][key] = value
+                progress(current_check, "complete")
+                if scope == "full":
+                    account = await codex.request("account/read", {"refreshToken": False})
+                    if not account.get("account") and account.get("requiresOpenaiAuth", True):
+                        report["gates"]["real_turn"] = outcome(
+                            "inconclusive", "authentication_unavailable", "real_turn"
+                        )
                     else:
-                        report[key] = value
-        except Exception as exc:
+                        current_check = "real_turn"
+                        report["current_check"] = current_check
+                        results = await real_turn(
+                            codex, inspection, repository, content, arguments.timeout
+                        )
+                        for key, value in results.items():
+                            if key in GATES:
+                                report["gates"][key] = value
+                            else:
+                                report[key] = value
+        except (Exception, asyncio.CancelledError) as exc:
             from backend.app.generation.security import GenerationSecurityError
 
+            report["interrupted"] = isinstance(exc, asyncio.CancelledError)
+            progress(current_check, "interrupted" if report["interrupted"] else "failed")
+            if hasattr(exc, "cleanup"):
+                report["process_cleanup_failure"] = exc.cleanup
             report["failed_check"] = current_check
             report["failure"] = type(exc).__name__
             report["reason"] = (
@@ -529,14 +660,30 @@ async def verify(arguments: argparse.Namespace) -> dict:
                 if isinstance(exc, GenerationSecurityError)
                 else "environment_or_protocol_failure"
             )
-            gate = current_check if current_check in GATES else "protocol_config"
+            if isinstance(exc, GenerationSecurityError) and exc.diagnostics:
+                report["shell_environment_diagnostics"] = exc.diagnostics
+            gate = current_check
             report["gates"][gate] = outcome(
                 "failed" if isinstance(exc, GenerationSecurityError) else "inconclusive",
                 report["reason"],
             )
         finally:
+            # Recompute from retained rows even when a later probe was interrupted.
+            if report.get("probe_results"):
+                assessed = assess_probes(
+                    report["probe_results"],
+                    hashlib.sha256(content.encode()).hexdigest(),
+                    network_control,
+                    report.get("delete_control", {}).get("status") == "passed",
+                )
+                report["gates"].update(assessed)
+            report["current_check"] = "fixture_cleanup"
+            progress("fixture_cleanup", "start")
             if codex:
-                await codex.stop()
+                try:
+                    await codex.stop()
+                except Exception:
+                    report["app_server_cleanup"] = "failed"
             listener.close()
             try:
                 report["git_status_unchanged"] = before_git_status == await git(
@@ -555,6 +702,26 @@ async def verify(arguments: argparse.Namespace) -> dict:
                 os.environ["CODEX_HOME"] = old_home
         report["fixture_cleanup"] = "pending"
     report["fixture_cleanup"] = "passed" if not root.exists() else "failed"
+    progress("fixture_cleanup", report["fixture_cleanup"])
+    report["process_cleanup"] = (
+        "failed"
+        if report.get("app_server_cleanup") == "failed"
+        or report.get("process_cleanup_failure", {}).get("status") == "failed"
+        or any(
+            row.get("cleanup", {}).get("status") == "failed"
+            for row in report.get("probe_results", {}).values()
+        )
+        else "passed"
+    )
+    if report["partial"]:
+        rows = report.get("probe_results", {})
+        for gate, names in {
+            "sandbox_read": ("allowed", "sibling", "outside", "auth_sentinel"),
+            "non_modification": ("update", "create", "delete", "rename", "git_write"),
+            "command_network": ("loopback", "public"),
+        }.items():
+            if not any(name in rows for name in names):
+                report["gates"][gate] = outcome("not_run", "diagnostic_scope")
     report["protocol_config_gate"] = report["gates"]["protocol_config"]["status"] == "passed"
     report["behavior_gate"] = all(
         report["gates"][name]["status"] == "passed" for name in GATES if name != "protocol_config"
@@ -565,13 +732,29 @@ async def verify(arguments: argparse.Namespace) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex", default="/Users/futaw/.local/bin/codex")
-    parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=120,
+        help="Per command/RPC timeout, not a whole-run deadline",
+    )
+    parser.add_argument(
+        "--only",
+        choices=("deletion", "reads", "protocol", "shell-merge"),
+        help="Diagnostic partial run; never satisfies the full safety gate",
+    )
     arguments = parser.parse_args()
+    if not math.isfinite(arguments.timeout) or arguments.timeout <= 0:
+        parser.error("--timeout must be positive")
     report = asyncio.run(verify(arguments))
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    if report.get("interrupted"):
+        return 130
     return (
         0
-        if report["protocol_config_gate"]
+        if not report["partial"]
+        and report["process_cleanup"] == "passed"
+        and report["protocol_config_gate"]
         and report["behavior_gate"]
         and report["fixture_cleanup"] == "passed"
         else 1

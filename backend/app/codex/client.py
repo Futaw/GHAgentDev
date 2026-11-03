@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 import time
@@ -12,6 +11,7 @@ from typing import Any
 
 from backend.app.codex.contract import cli_output, verify_contract
 from backend.app.codex.policy import startup_arguments
+from backend.app.codex.process import close_process
 from backend.app.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -81,18 +81,22 @@ class CodexAppServer:
         except Exception as exc:
             self._last_error = type(exc).__name__
             logger.warning("Codex App Server initial connection failed: %s", self._last_error)
+            if getattr(exc, "cleanup", {}).get("status") == "failed":
+                # Retrying would hide an unconfirmed process left by startup validation.
+                raise
         self._supervisor_task = asyncio.create_task(self._supervise(), name="codex-supervisor")
 
     async def stop(self) -> None:
         self._stopping = True
         process = self._process
-        if process and process.returncode is None:
-            process.terminate()
-            with contextlib.suppress(asyncio.TimeoutError):
-                await asyncio.wait_for(process.wait(), timeout=5)
-            if process.returncode is None:
-                process.kill()
-                await process.wait()
+        cleanup_error = None
+        if process:
+            try:
+                await close_process(process)
+                if self._process is process:
+                    self._process = None
+            except Exception as exc:
+                cleanup_error = exc
         for task in (self._reader_task, self._stderr_task, self._supervisor_task):
             if task and not task.done():
                 task.cancel()
@@ -108,6 +112,8 @@ class CodexAppServer:
         for task in tuple(self._notification_tasks):
             task.cancel()
         await asyncio.gather(*tuple(self._notification_tasks), return_exceptions=True)
+        if cleanup_error:
+            raise cleanup_error
 
     async def ensure_connected(self) -> None:
         if self.connected:
@@ -179,6 +185,7 @@ class CodexAppServer:
                 self._config.codex_executable,
                 *startup_arguments(),
                 cwd=PROCESS_CWD,
+                start_new_session=True,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -200,9 +207,8 @@ class CodexAppServer:
                 await self.notify("initialized")
             except Exception:
                 process = self._process
-                if process and process.returncode is None:
-                    process.terminate()
-                    await process.wait()
+                if process:
+                    await close_process(process)
                 raise
             self.generation += 1
             self.security_epoch += 1
@@ -363,9 +369,10 @@ class CodexAppServer:
     async def discard_connection(self) -> None:
         process = self._process
         await self._handle_disconnect("Codex connection discarded")
-        if process and process.returncode is None:
-            process.kill()
-            await process.wait()
+        if process:
+            await close_process(process)
+            if self._process is process:
+                self._process = None
 
     def _queue_notification(self, method: str, params: dict[str, Any]) -> None:
         generation = self.generation

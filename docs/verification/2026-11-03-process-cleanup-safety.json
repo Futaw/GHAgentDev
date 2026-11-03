@@ -1,0 +1,667 @@
+{
+  "automatic_tests": {
+    "backend_passed": 132,
+    "git_diff_check": "passed",
+    "real_codex_safety_passed": false,
+    "ruff_check": "passed",
+    "ruff_format_check": "passed"
+  },
+  "base_commit": "dbb6d1ba40ad774642b33f7e845d572c803e34a9",
+  "deletion_diagnostic": {
+    "exit_code": 1,
+    "partial": true,
+    "report": {
+      "behavior_gate": false,
+      "delete_control": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 84886,
+          "pid": 84886,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "status": "passed"
+      },
+      "fixture_cleanup": "passed",
+      "gates": {
+        "additional_permissions": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "command_network": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing",
+          "status": "inconclusive"
+        },
+        "external_tools": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "fixture_integrity": {
+          "evidence": "real_cli",
+          "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+          "status": "passed"
+        },
+        "non_modification": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing",
+          "status": "inconclusive"
+        },
+        "protocol_config": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "real_turn": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "sandbox_read": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing",
+          "status": "inconclusive"
+        }
+      },
+      "git_status_unchanged": true,
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "parent_network_control": "passed",
+      "parent_read_control": "passed",
+      "partial": true,
+      "policy_version": "repospec-generation-v1.3-1",
+      "probe_results": {
+        "allowed": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 84887,
+            "pid": 84887,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "e38418d5f64165bd298db22046a937021851418870a16ae061e32c13bb584a54",
+          "status": "read"
+        },
+        "delete": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 84890,
+            "pid": 84890,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        }
+      },
+      "process_cleanup": "passed",
+      "protocol_config_gate": false,
+      "real_approval_request": "not_observed",
+      "schema_hashes": {
+        "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+        "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+      },
+      "scope": "deletion",
+      "thread_turn_schema_hashes": {
+        "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+        "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+      },
+      "version": "codex-cli 0.164.0"
+    }
+  },
+  "full_run": {
+    "exit_code": 1,
+    "report": {
+      "behavior_gate": false,
+      "current_check": "fixture_cleanup",
+      "delete_control": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 91478,
+          "pid": 91478,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "status": "passed"
+      },
+      "failed_check": "protocol_config",
+      "failure": "GenerationSecurityError",
+      "fixture_cleanup": "passed",
+      "gates": {
+        "additional_permissions": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "command_network": {
+          "evidence": "real_cli",
+          "reason": "positive_control_and_os_denials",
+          "status": "passed"
+        },
+        "external_tools": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "fixture_integrity": {
+          "evidence": "real_cli",
+          "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+          "status": "passed"
+        },
+        "non_modification": {
+          "evidence": "real_cli",
+          "reason": "positive_control_and_os_denials",
+          "status": "passed"
+        },
+        "protocol_config": {
+          "evidence": "real_cli",
+          "reason": "shell_environment_merge",
+          "status": "failed"
+        },
+        "real_turn": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "sandbox_read": {
+          "evidence": "real_cli",
+          "reason": "outside_read_succeeded",
+          "status": "failed"
+        }
+      },
+      "git_status_unchanged": true,
+      "interrupted": false,
+      "isolated_protocol": {
+        "evidence": "real_cli",
+        "reason": "canonical_profile_runtime_checked",
+        "status": "passed"
+      },
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "parent_network_control": "passed",
+      "parent_read_control": "passed",
+      "partial": false,
+      "policy_version": "repospec-generation-v1.3-1",
+      "probe_results": {
+        "allowed": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 91479,
+            "pid": 91479,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "3c31213c7d0d8580164f8243a8b618652a877ace320cc78cb383b39c09377d4b",
+          "status": "read"
+        },
+        "auth_sentinel": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 91488,
+            "pid": 91488,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "c1b566be62656c58625b71848c8f83b5be1bb07c25e5392c51d3795ffe625545",
+          "status": "read"
+        },
+        "create": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 91497,
+            "pid": 91497,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "delete": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 91500,
+            "pid": 91500,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "git_write": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 91506,
+            "pid": 91506,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "loopback": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 7,
+            "pgid": 91509,
+            "pid": 91509,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "outside": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 91485,
+            "pid": 91485,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "5f418f6f0802706467374a678e7cbd9bb100eaae7b598491110ba2b48e307849",
+          "status": "read"
+        },
+        "public": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 7,
+            "pgid": 91512,
+            "pid": 91512,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "rename": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 91503,
+            "pid": 91503,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "sibling": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 91482,
+            "pid": 91482,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "d4d3f93dac8ffed7e8bffe85a95089eac1d76b077be1cc260a6b3f30a55a69e0",
+          "status": "read"
+        },
+        "update": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 91494,
+            "pid": 91494,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        }
+      },
+      "process_cleanup": "passed",
+      "protocol_config_gate": false,
+      "real_approval_request": "not_observed",
+      "reason": "shell_environment_merge",
+      "schema_hashes": {
+        "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+        "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+      },
+      "scope": "full",
+      "shell_environment_diagnostics": {
+        "fields": {
+          "exclude": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "experimental_use_profile": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "filters": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "ignore_default_excludes": {
+            "effective_origin": "sessionFlags",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              }
+            ],
+            "matches": true,
+            "present": true
+          },
+          "include_only": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "inherit": {
+            "effective_origin": "sessionFlags",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              }
+            ],
+            "matches": true,
+            "present": true
+          },
+          "set": {
+            "effective_origin": "unreported",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              },
+              {
+                "active": true,
+                "type": "user"
+              }
+            ],
+            "matches": false,
+            "present": true
+          }
+        },
+        "set_entry_count": 2,
+        "set_path_matches": true,
+        "table_present": true,
+        "unknown_field_count": 0
+      },
+      "thread_turn_schema_hashes": {
+        "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+        "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+      },
+      "version": "codex-cli 0.164.0"
+    },
+    "timeout_seconds_per_operation": 120
+  },
+  "generation_enabled": false,
+  "profile_variants": {
+    "canonical": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 88271,
+          "pid": 88271,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "b85a963c1e582a0bc83e32fcc5c41c3f5b5218ef6309c5451d5a2d30fdaf95fb",
+        "status": "read"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 88276,
+          "pid": 88276,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "c161f7b2304fe91550fcb73d39b72e1781ad01c4d201243ca3b0664751a7188c",
+        "status": "read"
+      }
+    },
+    "explicit_repository": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 88285,
+          "pid": 88285,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "b85a963c1e582a0bc83e32fcc5c41c3f5b5218ef6309c5451d5a2d30fdaf95fb",
+        "status": "read"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 88288,
+          "pid": 88288,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "c161f7b2304fe91550fcb73d39b72e1781ad01c4d201243ca3b0664751a7188c",
+        "status": "read"
+      }
+    },
+    "fixture_cleanup": "passed",
+    "no_minimal": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 134,
+          "pgid": 88279,
+          "pid": 88279,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "exit_code": 134,
+        "reason": "command_not_started",
+        "status": "unavailable"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 134,
+          "pgid": 88282,
+          "pid": 88282,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "exit_code": 134,
+        "reason": "command_not_started",
+        "status": "unavailable"
+      }
+    }
+  },
+  "recorded_fixture_process_check": {
+    "action": "read_only_pid_pgid_comparison",
+    "remaining_processes_or_groups": []
+  },
+  "shell_merge_reproduction": {
+    "exit_code": 1,
+    "fixture_set_entry_count_before_override": 1,
+    "partial": true,
+    "report": {
+      "behavior_gate": false,
+      "failed_check": "isolated_protocol",
+      "failure": "GenerationSecurityError",
+      "fixture_cleanup": "passed",
+      "gates": {
+        "additional_permissions": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "command_network": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing_or_unconfirmed",
+          "status": "inconclusive"
+        },
+        "external_tools": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "fixture_integrity": {
+          "evidence": "real_cli",
+          "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+          "status": "passed"
+        },
+        "isolated_protocol": {
+          "evidence": "real_cli",
+          "reason": "shell_environment_merge",
+          "status": "failed"
+        },
+        "non_modification": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing_or_unconfirmed",
+          "status": "inconclusive"
+        },
+        "protocol_config": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "real_turn": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "sandbox_read": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing_or_unconfirmed",
+          "status": "inconclusive"
+        }
+      },
+      "git_status_unchanged": true,
+      "interrupted": false,
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "parent_network_control": "passed",
+      "parent_read_control": "passed",
+      "partial": true,
+      "policy_version": "repospec-generation-v1.3-1",
+      "probe_results": {},
+      "process_cleanup": "passed",
+      "protocol_config_gate": false,
+      "real_approval_request": "not_observed",
+      "reason": "shell_environment_merge",
+      "schema_hashes": {
+        "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+        "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+      },
+      "scope": "shell-merge",
+      "shell_environment_diagnostics": {
+        "fields": {
+          "exclude": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "experimental_use_profile": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "filters": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "ignore_default_excludes": {
+            "effective_origin": "sessionFlags",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              }
+            ],
+            "matches": true,
+            "present": true
+          },
+          "include_only": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "inherit": {
+            "effective_origin": "sessionFlags",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              }
+            ],
+            "matches": true,
+            "present": true
+          },
+          "set": {
+            "effective_origin": "unreported",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              },
+              {
+                "active": true,
+                "type": "user"
+              }
+            ],
+            "matches": false,
+            "present": true
+          }
+        },
+        "set_entry_count": 2,
+        "set_path_matches": true,
+        "table_present": true,
+        "unknown_field_count": 0
+      },
+      "thread_turn_schema_hashes": {
+        "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+        "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+      },
+      "version": "codex-cli 0.164.0"
+    }
+  }
+}

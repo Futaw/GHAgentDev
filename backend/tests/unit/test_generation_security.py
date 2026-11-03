@@ -214,3 +214,48 @@ async def test_connection_generation_and_account_changes_invalidate_inspection(t
         setattr(codex, attribute, getattr(codex, attribute) + 1)
         with pytest.raises(GenerationSecurityError):
             await check.recheck()
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "inherit",
+        "ignore_default_excludes",
+        "set",
+        "include_only",
+        "exclude",
+        "filters",
+        "experimental_use_profile",
+    ],
+)
+def test_shell_diagnostics_identify_only_mismatch_without_secrets(field, caplog):
+    from backend.app.generation.security import shell_environment_diagnostics
+
+    response = config_read()
+    policy = response["config"]["shell_environment_policy"]
+    values = {
+        "inherit": "all",
+        "ignore_default_excludes": True,
+        "set": {**policy["set"], "SECRET_NAME": "secret-value"},
+        "include_only": ["secret-value"],
+        "exclude": ["secret-value"],
+        "filters": {"secret-value": "include"},
+        "experimental_use_profile": True,
+    }
+    policy[field] = values[field]
+    response["layers"].append(
+        {
+            "name": {"type": "user", "file": "/secret-value"},
+            "version": "secret-value",
+            "config": {"shell_environment_policy": {field: values[field]}},
+            "disabledReason": None,
+        }
+    )
+    with pytest.raises(GenerationSecurityError) as caught:
+        assert_security_requirements(response, {"requirements": None})
+    assert str(caught.value) == "shell_environment_merge"
+    diagnostic = shell_environment_diagnostics(response)
+    assert [k for k, v in diagnostic["fields"].items() if not v["matches"]] == [field]
+    assert {"type": "user", "active": True} in diagnostic["fields"][field]["layer_sources"]
+    assert "secret-value" not in str(diagnostic) + caplog.text + str(caught.value)
+    assert "SECRET_NAME" not in str(diagnostic) + caplog.text
