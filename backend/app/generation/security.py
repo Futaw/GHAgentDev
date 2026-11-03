@@ -12,7 +12,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GenerationSecurityError(RuntimeError):
-    """Only fixed, non-sensitive classifications belong in this exception."""
+    """Only fixed classifications and sanitized diagnostics belong here."""
+
+    def __init__(self, reason: str, diagnostics: dict | None = None):
+        super().__init__(reason)
+        self.diagnostics = diagnostics
 
 
 def require(condition: bool, reason: str) -> None:
@@ -46,6 +50,73 @@ def generation_thread_config(job_id: UUID, effective_config: dict) -> dict[str, 
             name: {"enabled": False} for name in {"_default", *(effective_config.get("apps") or {})}
         },
         "mcp_servers": {name: {"enabled": False} for name in effective_config["mcp_servers"]},
+    }
+
+
+SHELL_FIELDS = (
+    "inherit",
+    "ignore_default_excludes",
+    "set",
+    "include_only",
+    "exclude",
+    "filters",
+    "experimental_use_profile",
+)
+SOURCE_TYPES = {
+    "packagedDefaults",
+    "mdm",
+    "system",
+    "enterpriseManaged",
+    "user",
+    "project",
+    "sessionFlags",
+    "legacyManagedConfigTomlFromFile",
+    "legacyManagedConfigTomlFromMdm",
+}
+
+
+def shell_environment_diagnostics(config_read: dict) -> dict:
+    """No environment names, values, patterns, paths or layer versions escape."""
+    shell = config_read.get("config", {}).get("shell_environment_policy")
+    if not isinstance(shell, dict):
+        return {"table_present": False}
+    matches = {
+        "inherit": shell.get("inherit") == "none",
+        "ignore_default_excludes": shell.get("ignore_default_excludes") is False,
+        "set": shell.get("set") == {"PATH": SAFE_PATH},
+        "include_only": shell.get("include_only") in (None, []),
+        "exclude": shell.get("exclude") in (None, []),
+        "filters": shell.get("filters") in (None, []),
+        "experimental_use_profile": shell.get("experimental_use_profile") in (None, False),
+    }
+    fields = {}
+    for field in SHELL_FIELDS:
+        sources = []
+        for layer in config_read.get("layers", []):
+            table = layer.get("config", {}).get("shell_environment_policy", {})
+            if isinstance(table, dict) and field in table:
+                kind = layer.get("name", {}).get("type")
+                sources.append(
+                    {
+                        "type": kind if kind in SOURCE_TYPES else "unknown",
+                        "active": layer.get("disabledReason") is None,
+                    }
+                )
+        origin = config_read.get("origins", {}).get("shell_environment_policy." + field, {})
+        kind = origin.get("name", {}).get("type") if isinstance(origin, dict) else None
+        fields[field] = {
+            "matches": matches[field],
+            "present": field in shell,
+            "layer_sources": sources,
+            "effective_origin": kind if kind in SOURCE_TYPES else "unreported",
+        }
+    values = shell.get("set")
+    return {
+        "table_present": True,
+        "fields": fields,
+        "unknown_field_count": len(set(shell) - set(SHELL_FIELDS)),
+        "set_entry_count": len(values) if isinstance(values, dict) else None,
+        "set_path_matches": isinstance(values, dict) and values.get("PATH") == SAFE_PATH,
     }
 
 
@@ -106,16 +177,10 @@ def assert_security_requirements(
         },
         "shell_environment_unknown",
     )
-    require(
-        shell.get("inherit") == "none"
-        and shell.get("ignore_default_excludes") is False
-        and shell.get("set") == {"PATH": SAFE_PATH}
-        and shell.get("include_only") in (None, [])
-        and shell.get("exclude") in (None, [])
-        and shell.get("filters") in (None, [])
-        and shell.get("experimental_use_profile") in (None, False),
-        "shell_environment_merge",
-    )
+    diagnostics = shell_environment_diagnostics(config_read)
+    if not all(field["matches"] for field in diagnostics["fields"].values()):
+        LOGGER.warning("Generation shell environment mismatch diagnostics=%s", diagnostics)
+        raise GenerationSecurityError("shell_environment_merge", diagnostics)
     require(isinstance(effective.get("mcp_servers"), dict), "mcp_inventory_missing")
     require(effective.get("apps") is None or isinstance(effective["apps"], dict), "apps_invalid")
     require("requirements" in requirements_read, "requirements_missing")

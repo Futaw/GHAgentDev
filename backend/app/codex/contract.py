@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import tempfile
 from pathlib import Path
 
 from backend.app.codex.policy import DISABLED_FEATURES, startup_arguments
+from backend.app.codex.process import Progress, run_command
 
 # Deliberately pinned: a CLI update needs a contract review and new behavior gates.
 SUPPORTED_VERSION = "codex-cli 0.164.0"
@@ -47,39 +47,42 @@ async def cli_output(
     timeout_seconds: float,
     *,
     env: dict[str, str] | None = None,
+    progress: Progress | None = None,
 ) -> bytes:
-    process = await asyncio.create_subprocess_exec(
-        executable,
-        *args,
-        cwd=cwd,
-        env=env,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
-    )
-    try:
-        stdout, _ = await asyncio.wait_for(process.communicate(), timeout_seconds)
-        if process.returncode != 0:
-            raise CliExecutionError(process.returncode)
-        return stdout
-    finally:
-        if process.returncode is None:
-            process.kill()
-            await process.communicate()
+    result = await run_command(executable, args, cwd, timeout_seconds, env=env, progress=progress)
+    if result.returncode != 0:
+        raise CliExecutionError(result.returncode)
+    return result.stdout
 
 
-async def verify_contract(executable: str, cwd: Path, timeout_seconds: float) -> dict:
-    version = (await cli_output(executable, ["--version"], cwd, timeout_seconds)).decode().strip()
+async def verify_contract(
+    executable: str, cwd: Path, timeout_seconds: float, *, progress: Progress | None = None
+) -> dict:
+    async def command(name: str, args: list[str]) -> bytes:
+        callback = (
+            (lambda event, details: progress(event, {"step": name, **details}))
+            if progress
+            else None
+        )
+        try:
+            if callback:
+                return await cli_output(executable, args, cwd, timeout_seconds, progress=callback)
+            return await cli_output(executable, args, cwd, timeout_seconds)
+        except BaseException as exc:
+            if progress:
+                progress("timeout" if isinstance(exc, TimeoutError) else "failed", {"step": name})
+            raise
+
+    version = (await command("version", ["--version"])).decode().strip()
     if version != SUPPORTED_VERSION:
         raise RuntimeError("cli_version_unreviewed")
-    help_text = (
-        await cli_output(executable, ["app-server", "--help"], cwd, timeout_seconds)
-    ).decode()
+    help_text = (await command("app_server_help", ["app-server", "--help"])).decode()
     if not all(
         flag in help_text
         for flag in ("--strict-config", "--disable", "--print-startup-config", "--listen")
     ):
         raise RuntimeError("cli_flags_missing")
-    features = (await cli_output(executable, ["features", "list"], cwd, timeout_seconds)).decode()
+    features = (await command("features", ["features", "list"])).decode()
     if not set(DISABLED_FEATURES) <= {
         line.split()[0] for line in features.splitlines() if line.split()
     }:
@@ -92,7 +95,7 @@ async def verify_contract(executable: str, cwd: Path, timeout_seconds: float) ->
             args = ["app-server", "generate-json-schema", "--out", str(root)]
             if mode == "experimental":
                 args.append("--experimental")
-            await cli_output(executable, args, cwd, timeout_seconds)
+            await command("schema_" + mode, args)
             pair_hashes[mode] = hashlib.sha256(
                 (root / "v2" / "ThreadStartParams.json").read_bytes()
                 + (root / "v2" / "TurnStartParams.json").read_bytes()
@@ -113,5 +116,5 @@ async def verify_contract(executable: str, cwd: Path, timeout_seconds: float) ->
                         raise RuntimeError("cli_schema_fields_missing")
                 digest.update(raw)
             hashes[mode] = digest.hexdigest()
-    await cli_output(executable, startup_arguments(validation=True), cwd, timeout_seconds)
+    await command("startup_validation", startup_arguments(validation=True))
     return {"version": version, "schema_hashes": hashes, "thread_turn_schema_hashes": pair_hashes}

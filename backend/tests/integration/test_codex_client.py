@@ -130,3 +130,19 @@ async def test_notification_handler_can_request_without_blocking_reader():
         await asyncio.wait_for(finished.wait(), 1)
     finally:
         await client.stop()
+
+
+@pytest.mark.asyncio
+async def test_failed_validation_cleanup_is_propagated_without_restart(monkeypatch):
+    from backend.app.codex.process import CommandTimeout
+
+    async def output(*args, **kwargs):
+        raise CommandTimeout({"status": "failed"})
+
+    monkeypatch.setattr("backend.app.codex.client.cli_output", output)
+    client = CodexAppServer(make_settings())
+    with pytest.raises(CommandTimeout) as caught:
+        await client.start()
+    assert caught.value.cleanup["status"] == "failed"
+    assert client._supervisor_task is None
+    await client.stop()
