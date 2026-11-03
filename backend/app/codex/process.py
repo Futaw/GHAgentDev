@@ -132,6 +132,9 @@ async def run_command(
             cwd=cwd,
             env=env,
             start_new_session=True,
+            # Commands never consume user input. Inheriting a terminal lets tools
+            # such as macOS rm wait for confirmation while stderr is captured.
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

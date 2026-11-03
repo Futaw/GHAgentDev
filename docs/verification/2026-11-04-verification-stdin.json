@@ -1,0 +1,164 @@
+{
+  "automatic_tests": {
+    "backend_passed": 133,
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "skipped": 0
+  },
+  "base_commit": "cc487ee64be3c81b5850b7d3fa8195336e4e5621",
+  "fixed_harness_from_pseudoterminal": {
+    "exit_code": 1,
+    "partial": true,
+    "report": {
+      "behavior_gate": false,
+      "current_check": "fixture_cleanup",
+      "delete_control": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 98059,
+          "pid": 98059,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "status": "passed"
+      },
+      "fixture_cleanup": "passed",
+      "gates": {
+        "additional_permissions": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "command_network": {
+          "evidence": "real_cli",
+          "reason": "diagnostic_scope",
+          "status": "not_run"
+        },
+        "external_tools": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "fixture_integrity": {
+          "evidence": "real_cli",
+          "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+          "status": "passed"
+        },
+        "non_modification": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing_or_unconfirmed",
+          "status": "inconclusive"
+        },
+        "protocol_config": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "real_turn": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "sandbox_read": {
+          "evidence": "real_cli",
+          "reason": "probe_evidence_missing_or_unconfirmed",
+          "status": "inconclusive"
+        }
+      },
+      "git_status_unchanged": true,
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "parent_network_control": "passed",
+      "parent_read_control": "passed",
+      "partial": true,
+      "policy_version": "repospec-generation-v1.3-1",
+      "probe_results": {
+        "allowed": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 98060,
+            "pid": 98060,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "965a7e8e44d144c3532c9c548ec3487f19e65020282f33d88e96854b1b30efb8",
+          "status": "read"
+        },
+        "delete": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 98072,
+            "pid": 98072,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        }
+      },
+      "process_cleanup": "passed",
+      "protocol_config_gate": false,
+      "real_approval_request": "not_observed",
+      "schema_hashes": {
+        "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+        "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+      },
+      "scope": "deletion",
+      "thread_turn_schema_hashes": {
+        "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+        "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+      },
+      "version": "codex-cli 0.164.0"
+    },
+    "timeout_seconds": 15
+  },
+  "generation_enabled": false,
+  "recorded_fixture_process_check": {
+    "action": "read_only_pid_pgid_comparison",
+    "remaining_processes_or_groups": []
+  },
+  "stdin_comparison": {
+    "fixture_cleanup": true,
+    "trials": [
+      {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 97169,
+          "pid": 97169,
+          "pipes_eof": true,
+          "signal_error": false
+        },
+        "confirmation_prompt_observed": true,
+        "exit_code": 0,
+        "parent_returncode_at_timeout": null,
+        "permission_denial_observed": false,
+        "sent_negative_answer": true,
+        "stdin_mode": "terminal",
+        "target_unchanged": true,
+        "wait_result": "timeout"
+      },
+      {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 97174,
+          "pid": 97174,
+          "pipes_eof": true,
+          "signal_error": false
+        },
+        "confirmation_prompt_observed": false,
+        "exit_code": 1,
+        "permission_denial_observed": true,
+        "stdin_mode": "devnull",
+        "target_unchanged": true,
+        "wait_result": "completed"
+      }
+    ]
+  }
+}
