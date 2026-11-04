@@ -1,0 +1,656 @@
+{
+  "automatic_tests": {
+    "backend_passed": 143,
+    "ruff_check": "passed",
+    "ruff_format_check": "passed"
+  },
+  "base_commit": "a67dd078354f8f3c00d3648659e2e93075907fd2",
+  "full_harness": {
+    "exit_code": 1,
+    "report": {
+      "behavior_gate": false,
+      "current_check": "fixture_cleanup",
+      "delete_control": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8260,
+          "pid": 8260,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "status": "passed"
+      },
+      "failed_check": "protocol_config",
+      "failure": "GenerationSecurityError",
+      "fixture_cleanup": "passed",
+      "gates": {
+        "additional_permissions": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "command_network": {
+          "evidence": "real_cli",
+          "reason": "positive_control_and_os_denials",
+          "status": "passed"
+        },
+        "external_tools": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "fixture_integrity": {
+          "evidence": "real_cli",
+          "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+          "status": "passed"
+        },
+        "non_modification": {
+          "evidence": "real_cli",
+          "reason": "positive_control_and_os_denials",
+          "status": "passed"
+        },
+        "protocol_config": {
+          "evidence": "real_cli",
+          "reason": "shell_environment_merge",
+          "status": "failed"
+        },
+        "real_turn": {
+          "evidence": "real_cli",
+          "reason": "preceding_gate_not_passed",
+          "status": "not_run"
+        },
+        "sandbox_read": {
+          "evidence": "real_cli",
+          "reason": "positive_control_and_os_denials",
+          "status": "passed"
+        }
+      },
+      "git_status_unchanged": true,
+      "interrupted": false,
+      "isolated_protocol": {
+        "evidence": "real_cli",
+        "reason": "canonical_profile_runtime_checked",
+        "status": "passed"
+      },
+      "non_temp_fixture_control": true,
+      "os": "macOS-26.6.2-arm64-arm-64bit",
+      "parent_network_control": "passed",
+      "parent_read_control": "passed",
+      "partial": false,
+      "policy_version": "repospec-generation-v1.3-2",
+      "probe_results": {
+        "allowed": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 0,
+            "pgid": 8262,
+            "pid": 8262,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "sha256": "731a4bce61c942aae1cc8603b7ff09afdaebb30b0b933a2c767a74b0f3629f7e",
+          "status": "read"
+        },
+        "auth_sentinel": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8289,
+            "pid": 8289,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "create": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8311,
+            "pid": 8311,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "delete": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8317,
+            "pid": 8317,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "git_write": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8328,
+            "pid": 8328,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "loopback": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 7,
+            "pgid": 8335,
+            "pid": 8335,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "os_tmp_sentinel": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8296,
+            "pid": 8296,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "outside": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8279,
+            "pid": 8279,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "public": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 7,
+            "pgid": 8343,
+            "pid": 8343,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "rename": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8322,
+            "pid": 8322,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "sibling": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8270,
+            "pid": 8270,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        },
+        "update": {
+          "cleanup": {
+            "group_absent": true,
+            "parent_returncode": 1,
+            "pgid": 8305,
+            "pid": 8305,
+            "pipes_eof": true,
+            "signal_error": false,
+            "status": "passed"
+          },
+          "errno": 1,
+          "status": "error"
+        }
+      },
+      "process_cleanup": "passed",
+      "protocol_config_gate": false,
+      "real_approval_request": "not_observed",
+      "reason": "shell_environment_merge",
+      "schema_hashes": {
+        "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+        "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+      },
+      "scope": "full",
+      "shell_environment_diagnostics": {
+        "fields": {
+          "exclude": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "experimental_use_profile": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "filters": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "ignore_default_excludes": {
+            "effective_origin": "sessionFlags",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              }
+            ],
+            "matches": true,
+            "present": true
+          },
+          "include_only": {
+            "effective_origin": "unreported",
+            "layer_sources": [],
+            "matches": true,
+            "present": true
+          },
+          "inherit": {
+            "effective_origin": "sessionFlags",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              }
+            ],
+            "matches": true,
+            "present": true
+          },
+          "set": {
+            "effective_origin": "unreported",
+            "layer_sources": [
+              {
+                "active": true,
+                "type": "sessionFlags"
+              },
+              {
+                "active": true,
+                "type": "user"
+              }
+            ],
+            "matches": false,
+            "present": true
+          }
+        },
+        "set_entry_count": 2,
+        "set_path_matches": true,
+        "table_present": true,
+        "unknown_field_count": 0
+      },
+      "thread_turn_schema_hashes": {
+        "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+        "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+      },
+      "version": "codex-cli 0.164.0"
+    },
+    "timeout_seconds": 120
+  },
+  "generation_enabled": false,
+  "profile_comparison": {
+    "canonical": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8465,
+          "pid": 8465,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "e2449e3f2078e4fc88492f0297bcc30d789dace260779eb80d7ad7a5e3e11c59",
+        "status": "read"
+      },
+      "auth_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8474,
+          "pid": 8474,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "fea6885a424e2fad1f83c213eb7012f7899d664288372d87bb855b9a59947a38",
+        "status": "read"
+      },
+      "non_temp_outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8477,
+          "pid": 8477,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "os_tmp_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8480,
+          "pid": 8480,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8471,
+          "pid": 8471,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "d728b4cd41aa21a429370bf9eb225543c3019f3a118ae8067065db6619c28d77",
+        "status": "read"
+      },
+      "sibling": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8468,
+          "pid": 8468,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "83cb74e28dd251a90d0530e52fa9c46d7d53cc0bb301ed936ffbc535c5d3fd74",
+        "status": "read"
+      }
+    },
+    "deny_both_temp_aliases": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8520,
+          "pid": 8520,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "e2449e3f2078e4fc88492f0297bcc30d789dace260779eb80d7ad7a5e3e11c59",
+        "status": "read"
+      },
+      "auth_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8529,
+          "pid": 8529,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "non_temp_outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8532,
+          "pid": 8532,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "os_tmp_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8535,
+          "pid": 8535,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8526,
+          "pid": 8526,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "sibling": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8523,
+          "pid": 8523,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      }
+    },
+    "deny_slash_tmp": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8483,
+          "pid": 8483,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "e2449e3f2078e4fc88492f0297bcc30d789dace260779eb80d7ad7a5e3e11c59",
+        "status": "read"
+      },
+      "auth_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8492,
+          "pid": 8492,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "non_temp_outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8495,
+          "pid": 8495,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "os_tmp_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8498,
+          "pid": 8498,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8489,
+          "pid": 8489,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "sibling": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8486,
+          "pid": 8486,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      }
+    },
+    "deny_tmpdir": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8501,
+          "pid": 8501,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "e2449e3f2078e4fc88492f0297bcc30d789dace260779eb80d7ad7a5e3e11c59",
+        "status": "read"
+      },
+      "auth_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8510,
+          "pid": 8510,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "fea6885a424e2fad1f83c213eb7012f7899d664288372d87bb855b9a59947a38",
+        "status": "read"
+      },
+      "non_temp_outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8514,
+          "pid": 8514,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "os_tmp_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 8517,
+          "pid": 8517,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8507,
+          "pid": 8507,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "d728b4cd41aa21a429370bf9eb225543c3019f3a118ae8067065db6619c28d77",
+        "status": "read"
+      },
+      "sibling": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 8504,
+          "pid": 8504,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "83cb74e28dd251a90d0530e52fa9c46d7d53cc0bb301ed936ffbc535c5d3fd74",
+        "status": "read"
+      }
+    },
+    "fixture_cleanup": true,
+    "fixture_unchanged": true
+  },
+  "recorded_fixture_process_check": {
+    "action": "read_only_pid_pgid_comparison",
+    "remaining_processes_or_groups": []
+  }
+}

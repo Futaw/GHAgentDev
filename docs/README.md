@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
 - 文書バージョン: v0.9
-- 更新日: 2026-11-03
+- 更新日: 2026-11-04
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -88,6 +88,8 @@ Phase 0 Chatは登録済みRepositoryではなく、環境設定の`TEST_CHAT_WO
 Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。[Phase 2詳細設計v1.3](./phase-2-detailed-design.md)に基づき、起動時の外部機能無効化、cwd別の設定・requirements、ThreadのProfile・root・全pageのfeature/MCP検査と、3分類のエラー表示を実装した。既存のstdio App ServerとJob固有Permission Profileを維持し、`plugin/list`と`disabledPluginIds`へ依存しない。
 
 2026-11-03の実Codex事前確認では、専用homeのThread検査、変更とcommand通信のOS拒否は確認できた。一方、canonical Profileでも対象外の非機密sentinelを読めたため、読み取り範囲gateは不合格である。実ユーザー設定の検査もshell環境mergeで停止し、認証付きTurn・実生成は未実行である。`GENERATION_ENABLED`の既定値falseと実際の`.env`を維持し、生成は有効化しない。合否、証拠種別と未実施事項は[安全性検証記録](./verification/2026-11-03-generation-safety.md)に記載する。
+
+2026-11-04には、一時領域への明示的なdenyを追加し、一時領域外の専用fixtureも含む読取り検査を拡充した。実CLIの読取り範囲、非変更、command通信拒否、専用homeのThread検査は合格したが、実ユーザー設定のshell環境mergeは未解決で、実Turnは未実行である。生成無効を維持する。詳細は[一時領域読取り修正の記録](./verification/2026-11-04-generation-temp-deny.md)を参照する。
 
 ### Phase 3: Viewer内Q&A
 

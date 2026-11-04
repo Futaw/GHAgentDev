@@ -8,6 +8,7 @@ def evidence():
             "sibling",
             "outside",
             "auth_sentinel",
+            "os_tmp_sentinel",
             "update",
             "create",
             "delete",
@@ -159,3 +160,11 @@ async def test_execution_error_retains_failed_cleanup(monkeypatch, tmp_path):
         "fake", [], tmp_path, tmp_path, {"reads": {}, "network": {}}, 1, selected={"delete"}
     )
     assert rows["delete"]["cleanup"]["status"] == "failed"
+
+
+def test_os_temporary_sentinel_is_required_for_read_gate():
+    rows = evidence()
+    del rows["os_tmp_sentinel"]
+    assert assess_probes(rows, "expected", True)["sandbox_read"]["status"] == "inconclusive"
+    rows["os_tmp_sentinel"] = {"status": "read"}
+    assert assess_probes(rows, "expected", True)["sandbox_read"]["status"] == "failed"
