@@ -39,6 +39,8 @@ def generation_thread_config(job_id: UUID, effective_config: dict) -> dict[str, 
                 "filesystem": {
                     ":root": "deny",
                     ":minimal": "read",
+                    ":tmpdir": "deny",
+                    ":slash_tmp": "deny",
                     ":workspace_roots": {".": "read"},
                 },
                 "network": {"enabled": False},
@@ -245,9 +247,12 @@ def _check_inherited(config: dict) -> None:
         filesystem = permission.get("filesystem", {})
         require(
             isinstance(filesystem, dict)
-            and set(filesystem) <= {":root", ":minimal", ":workspace_roots"},
+            and set(filesystem)
+            <= {":root", ":minimal", ":workspace_roots", ":tmpdir", ":slash_tmp"},
             "profile_extra_root",
         )
+        for alias in (":tmpdir", ":slash_tmp"):
+            require(alias not in filesystem or filesystem[alias] == "deny", "profile_temp_access")
     for key in config:
         if any(
             word in key

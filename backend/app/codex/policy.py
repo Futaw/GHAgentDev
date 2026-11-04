@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-POLICY_VERSION = "repospec-generation-v1.3-1"
+POLICY_VERSION = "repospec-generation-v1.3-2"
 DISABLED_FEATURES = (
     "plugins",
     "remote_plugin",

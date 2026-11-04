@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
 - 文書バージョン: v0.9
-- 更新日: 2026-10-30
+- 更新日: 2026-11-04
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -104,6 +104,8 @@ Repositoryを対象とするThreadは、Codex CLI `0.164.0`のPermission Profile
         "filesystem": {
           ":root": "deny",
           ":minimal": "read",
+          ":tmpdir": "deny",
+          ":slash_tmp": "deny",
           ":workspace_roots": {".": "read"}
         },
         "network": {"enabled": false}

@@ -89,7 +89,7 @@ def assess_probes(
     observed: object, expected_hash: str, network_control: bool, deletion_control: bool = True
 ) -> dict:
     groups = {
-        "sandbox_read": ("sibling", "outside", "auth_sentinel"),
+        "sandbox_read": ("sibling", "outside", "auth_sentinel", "os_tmp_sentinel"),
         "non_modification": ("update", "create", "delete", "rename", "git_write"),
         "command_network": ("loopback", "public"),
     }
@@ -386,8 +386,25 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
     current_check = "fixture_setup"
     report["current_check"] = current_check
     progress(current_check, "start")
-    with tempfile.TemporaryDirectory(prefix="repospec-gate-", dir="/private/tmp") as directory:
+    # Keep one sentinel outside both macOS temporary aliases. All files belong
+    # to fresh fixture directories; never probe existing repository/user files.
+    source_root = await asyncio.to_thread(lambda: Path(__file__).resolve().parents[2])
+    fixture_parent = source_root / ".data"
+    fixture_parent.mkdir(parents=True, exist_ok=True)
+    with (
+        tempfile.TemporaryDirectory(prefix="repospec-gate-", dir="/private/tmp") as directory,
+        tempfile.TemporaryDirectory(
+            prefix="repospec-outside-", dir=fixture_parent
+        ) as outside_directory,
+        tempfile.TemporaryDirectory(prefix="repospec-os-tmp-") as os_tmp_directory,
+    ):
         root = await asyncio.to_thread(Path(directory).resolve)
+        outside_root = await asyncio.to_thread(Path(outside_directory).resolve)
+        os_tmp_root = await asyncio.to_thread(Path(os_tmp_directory).resolve)
+        os_tmp_base = await asyncio.to_thread(Path(tempfile.gettempdir()).resolve)
+        report["non_temp_fixture_control"] = not any(
+            outside_root.is_relative_to(path) for path in (Path("/private/tmp"), os_tmp_base)
+        )
         repository = root / "repository"
         repository.mkdir()
 
@@ -399,10 +416,15 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
         )
         for name in ("allowed.txt", "delete.txt", "rename.txt"):
             (repository / name).write_text(content)
-        sibling, outside, sentinel = root / "sibling", root / "outside", home / "auth-sentinel.json"
-        for path in (sibling, outside, sentinel):
+        sibling, outside, sentinel = (
+            root / "sibling",
+            outside_root / "outside",
+            home / "auth-sentinel.json",
+        )
+        os_tmp_sentinel = os_tmp_root / "os-tmp-sentinel"
+        for path in (sibling, outside, sentinel, os_tmp_sentinel):
             path.write_text(uuid4().hex)
-        protected = [repository, sibling, outside, sentinel]
+        protected = [repository, sibling, outside, sentinel, os_tmp_sentinel]
         git_env = {
             **os.environ,
             "GIT_CONFIG_NOSYSTEM": "1",
@@ -486,6 +508,7 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
                     "sibling": str(sibling),
                     "outside": str(outside),
                     "auth_sentinel": str(sentinel),
+                    "os_tmp_sentinel": str(os_tmp_sentinel),
                 },
                 "network": {"loopback": list(local), "public": list(public or ("192.0.2.1", 443))},
             }
@@ -701,7 +724,16 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
             else:
                 os.environ["CODEX_HOME"] = old_home
         report["fixture_cleanup"] = "pending"
-    report["fixture_cleanup"] = "passed" if not root.exists() else "failed"
+    report["fixture_cleanup"] = (
+        "passed"
+        if not any(path.exists() for path in (root, outside_root, os_tmp_root))
+        else "failed"
+    )
+    if (
+        report["gates"]["sandbox_read"]["status"] == "passed"
+        and not report["non_temp_fixture_control"]
+    ):
+        report["gates"]["sandbox_read"] = outcome("inconclusive", "non_temp_fixture_unavailable")
     progress("fixture_cleanup", report["fixture_cleanup"])
     report["process_cleanup"] = (
         "failed"
@@ -716,7 +748,7 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
     if report["partial"]:
         rows = report.get("probe_results", {})
         for gate, names in {
-            "sandbox_read": ("allowed", "sibling", "outside", "auth_sentinel"),
+            "sandbox_read": ("allowed", "sibling", "outside", "auth_sentinel", "os_tmp_sentinel"),
             "non_modification": ("update", "create", "delete", "rename", "git_write"),
             "command_network": ("loopback", "public"),
         }.items():

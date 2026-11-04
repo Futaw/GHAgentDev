@@ -1,7 +1,7 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
 - 文書バージョン: v1.3
-- 更新日: 2026-10-30
+- 更新日: 2026-11-04
 - ステータス: 安全設定の設計改訂・実装修正待ち・実Codex動作gate未完了
 - 対象Phase: Phase 2「Viewer生成と保存」
 
@@ -1075,6 +1075,8 @@ Plugin本体とremote catalog、App、browser/computer、代替tool経路、hook
       "filesystem": {
         ":root": "deny",
         ":minimal": "read",
+        ":tmpdir": "deny",
+        ":slash_tmp": "deny",
         ":workspace_roots": {".": "read"}
       },
       "network": {"enabled": false}
@@ -1099,6 +1101,8 @@ Plugin本体とremote catalog、App、browser/computer、代替tool経路、hook
 | `outputSchema` | 既存の`viewer_document_json_schema()`が返す完全なViewerDocument schema |
 
 `disabledPluginIds`は送信しない。Turnからの`cwd / sandboxPolicy / permissions / model / environment`等のoverrideも許可しない。
+
+2026-11-04の一時領域読取り修正では、canonical Profileへ`:tmpdir=deny`と`:slash_tmp=deny`を追加し、policy versionを`repospec-generation-v1.3-2`とする。対象Repositoryが一時領域の下にあっても、そのreal pathへの具体的なreadだけを許可する。既存layerの一時領域aliasを認めるのはflatな`deny`だけとし、read/writeや未知の形式は拒否する。`:minimal`を外してcommandが起動しなくなることを安全性の合格にはしない。[追加検証記録](./verification/2026-11-04-generation-temp-deny.md)を参照する。
 
 旧`sandbox_mode / sandbox_workspace_write`が有効なlayerで非nullに明示設定されている場合はProfileと併用せず停止する。APIの固定fieldが`null`で返るだけの場合とは区別する。`:minimal`は同CLIのplatform/runtime集合であり、以前想定した`includePlatformDefaults`と同一とは保証しない。認証path・利用者document・兄弟Repositoryの読み取りを追加許可せず、実動作で制限を確認する。[Permission Profileの優先規則](https://learn.chatgpt.com/docs/permissions)では、より具体的なread/writeが広いdenyを上書きできるため、Profile名だけの一致確認では不十分である。
 
@@ -1133,7 +1137,7 @@ Turn中のJob timeoutは`turn/interrupt`を期限付きで送り、完了を確�
 | Protocol/config gate | versionと必要schemaを検証し、14.3のstrict起動、対象cwdの設定・requirements、14.4のThread応答・全pageのfeature/MCP照合がすべて成功する。schemaのhashを計算しただけでは合格にしない |
 | 決定的なsandbox probe | 同じcanonical Profileとcwdを`codex sandbox --permission-profile <fixture-profile> --include-managed-config -C <fixture>`で使用する。CLI helpに存在するこの経路とApp Server ThreadのProfile照合を併用し、モデルの試行省略を補う。既存Repositoryや設定へ書込みprobeを向けない |
 | 実Turnの動作gate | 実App Serverでfixtureをcommandから読み、`outputSchema`付きのTurnを完了させる。実際のitemとprobe結果を確認し、モデルのboolean自己申告だけでは合格にしない。実行されないprobe、モデルの単なる拒否、provider障害は`inconclusive`である |
-| 読み取り範囲 | 許可fixtureのランダムな非機密内容を読める。兄弟Repository、Workspace外、専用home内の認証path相当の非機密sentinelは読めない。親harnessから同じfileが読めることを対照確認する |
+| 読み取り範囲 | 許可fixtureのランダムな非機密内容を読める。兄弟Repository、一時領域外の専用fixture、OSの一時directory、専用home内の認証path相当の非機密sentinelは読めない。親harnessから同じfileが読めることを対照確認する |
 | 非変更 | 既存fileの更新・新規作成・削除・rename・`.git`更新を試し、OS拒否を確認する。成功時も例外時も`finally`で全fixture・sentinelの内容/存在/配置hashとGit statusを比較する。変更が1件でもあれば不合格 |
 | command network | 正常に受け付ける一時loopback listenerと、harnessから疎通確認済みの非機密public endpointを使う。同じ接続がsandbox内で拒否されることを確認する。閉じた`127.0.0.1:9`、DNS失敗、単なる接続timeoutを拒否の証拠にしない。対照が失敗したら`inconclusive` |
 | 外部tool | 全featureの無効状態、Thread MCP status、未起動canaryを照合する。非機密fixtureでPlugin/App/browser/MCP利用を誘導しても呼出しがなく、許可したcommand経路以外のtool itemが出ないことを確認する。知らないtoolが出れば不合格。回答の「使えない」だけでは合格にしない |

@@ -25,6 +25,8 @@ def test_canonical_profile_and_explicit_tool_overrides():
     assert config["permissions"][profile]["filesystem"] == {
         ":root": "deny",
         ":minimal": "read",
+        ":tmpdir": "deny",
+        ":slash_tmp": "deny",
         ":workspace_roots": {".": "read"},
     }
     assert config["permissions"][profile]["network"] == {"enabled": False}
@@ -259,3 +261,25 @@ def test_shell_diagnostics_identify_only_mismatch_without_secrets(field, caplog)
     assert {"type": "user", "active": True} in diagnostic["fields"][field]["layer_sources"]
     assert "secret-value" not in str(diagnostic) + caplog.text + str(caught.value)
     assert "SECRET_NAME" not in str(diagnostic) + caplog.text
+
+
+@pytest.mark.parametrize("alias", [":tmpdir", ":slash_tmp"])
+@pytest.mark.parametrize("access", ["read", "write", None, {".": "deny"}])
+def test_inherited_temporary_access_cannot_override_denial(alias, access):
+    response = config_read()
+    response["config"]["permissions"] = {"other": {"filesystem": {alias: access}}}
+    with pytest.raises(GenerationSecurityError, match="profile_temp_access"):
+        assert_security_requirements(response, {"requirements": None})
+
+
+def test_inherited_temporary_denials_are_allowed():
+    response = config_read()
+    response["config"]["permissions"] = {
+        "other": {
+            "filesystem": {
+                ":tmpdir": "deny",
+                ":slash_tmp": "deny",
+            }
+        }
+    }
+    assert_security_requirements(response, {"requirements": None})
