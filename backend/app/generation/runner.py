@@ -394,7 +394,13 @@ class GenerationRunner:
             return
         if method in {"item/started", "item/completed"}:
             item = params.get("item", {})
-            if item.get("type") not in {"agentMessage", "reasoning", "plan", "commandExecution"}:
+            if item.get("type") not in {
+                "userMessage",
+                "agentMessage",
+                "reasoning",
+                "plan",
+                "commandExecution",
+            }:
                 self.codex.security_epoch += 1
                 capture.approval_rejected = True
                 if capture.completed and not capture.completed.done():
@@ -411,7 +417,8 @@ class GenerationRunner:
             items = params.get("turn", {}).get("items", [])
             if not isinstance(items, list) or any(
                 not isinstance(item, dict)
-                or item.get("type") not in {"agentMessage", "reasoning", "plan", "commandExecution"}
+                or item.get("type")
+                not in {"userMessage", "agentMessage", "reasoning", "plan", "commandExecution"}
                 for item in items
             ):
                 self.codex.security_epoch += 1

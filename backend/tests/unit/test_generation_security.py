@@ -56,9 +56,11 @@ def test_unsafe_effective_config(key, value):
         assert_security_requirements(response, {"requirements": None})
 
 
-def test_merged_secret_and_active_layers_are_rejected():
+def test_merged_values_require_final_allowlist_and_active_layers_are_rejected():
     response = config_read()
     response["config"]["shell_environment_policy"]["set"]["SECRET"] = "sensitive"
+    assert_security_requirements(response, {"requirements": None})
+    response["config"]["shell_environment_policy"].pop("include_only")
     with pytest.raises(GenerationSecurityError, match="merge"):
         assert_security_requirements(response, {"requirements": None})
     response = config_read()
@@ -238,7 +240,7 @@ def test_shell_diagnostics_identify_only_mismatch_without_secrets(field, caplog)
     values = {
         "inherit": "all",
         "ignore_default_excludes": True,
-        "set": {**policy["set"], "SECRET_NAME": "secret-value"},
+        "set": {**policy["set"], "PATH": "secret-value"},
         "include_only": ["secret-value"],
         "exclude": ["secret-value"],
         "filters": {"secret-value": "include"},
@@ -283,3 +285,19 @@ def test_inherited_temporary_denials_are_allowed():
         }
     }
     assert_security_requirements(response, {"requirements": None})
+
+
+@pytest.mark.parametrize("allowlist", [None, [], ["*"], ["PATH", "SECRET"], ["P*"], ["path"]])
+def test_environment_allowlist_must_be_exact(allowlist):
+    response = config_read()
+    response["config"]["shell_environment_policy"]["include_only"] = allowlist
+    with pytest.raises(GenerationSecurityError, match="shell_environment_merge"):
+        assert_security_requirements(response, {"requirements": None})
+
+
+@pytest.mark.parametrize("key", ["path", "Path", "PaTh", "BAD=NAME", "BAD\nNAME"])
+def test_merged_environment_aliases_and_invalid_names_are_rejected(key):
+    response = config_read()
+    response["config"]["shell_environment_policy"]["set"][key] = "sensitive"
+    with pytest.raises(GenerationSecurityError, match="shell_environment_merge"):
+        assert_security_requirements(response, {"requirements": None})

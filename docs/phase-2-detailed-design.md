@@ -1,7 +1,7 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
 - 文書バージョン: v1.3
-- 更新日: 2026-11-04
+- 更新日: 2026-11-05
 - ステータス: 安全設定の設計改訂・実装修正待ち・実Codex動作gate未完了
 - 対象Phase: Phase 2「Viewer生成と保存」
 
@@ -1028,7 +1028,9 @@ stable schemaのhashは利用者の記録と一致した。experimental版の同
   -c allow_login_shell=false
   -c shell_environment_policy.inherit="none"
   -c shell_environment_policy.ignore_default_excludes=false
-  -c shell_environment_policy.set={PATH="/usr/bin:/bin:/usr/sbin:/sbin"}
+  -c shell_environment_policy.set={PATH="<固定CLIのcodex-path>:/usr/bin:/bin:/usr/sbin:/sbin"}
+  -c shell_environment_policy.include_only=["PATH"]
+  -c shell_environment_policy.exclude=[]
 ```
 
 上記は引数の一覧であり、そのまま複数行のshell commandとして実行する例ではない。TOML文字列の引用符を含め、各`key=value`を1引数として渡す。
@@ -1037,7 +1039,9 @@ Plugin本体とremote catalog、App、browser/computer、代替tool経路、hook
 
 認証は既存のApp Server管理を継続する。通常運用ではユーザーの`CODEX_HOME`とCodex管理のcredential storeを使い、バックエンドはtokenを取り出さず、別homeへのコピー、auth fileのsymlink、DBへの保存を行わない。専用homeは今回の非認証fixtureのためだけに使用した。設定APIから認証値をログへ出さず、未認証は既存の`AUTH_REQUIRED`経路へ返す。ログアウト・account変更時はGenerationの検査結果を失効させる。
 
-`inherit=none`はCodexが起動するcommandの環境に適用し、App Server自身の認証処理とは分ける。下位layerの`set`やfilterはmergeされ得るため、指定したtableで全置換されたとは扱わない。各Jobで有効なshell環境設定を検査し、PATH以外の`set`、秘密値の注入、未評価のinclude/exclude・旧形式の組み合わせがあればfail closedとする。user設定を消して解決しない。必要なruntime追加は非機密の固定値だけをレビューし、動作gateを再実行する。[shell環境の公式契約](https://learn.chatgpt.com/docs/config-file/config-advanced#shell-environment-policy)も参照する。
+`inherit=none`はCodexが起動するcommandの環境に適用し、App Server自身の認証処理とは分ける。下位layerの`set`はtable結合されるため、v1.3-3では最終段の`include_only=["PATH"]`を必須とする。追加のset値は設定から削除せず、子環境へ渡す前に除去する。PATHは固定値との一致を要求し、大文字小文字違いのPATH、広いallowlist、非空filters/exclude、未知field、profile環境の再導入は拒否する。秘密値・追加変数名はログへ出さない。これは未評価の追加変数を子環境へ許可する変更ではなく、設定tableの完全一致から、評価済みの最終環境制約へ検査対象を変更する設計である。
+
+CLI 0.164.0はfilter後に、同梱rgのdirectoryと固定runtime markerを追加する。PATHはレビューした固定インストールの`codex-path`とsystem4directoryだけを定数で指定し、package manifestのversion・target・pathDir等を照合する。任意のPATH追加や別インストールを自動受理しない。Permission Profileのrootは追加しない。実Turnの環境gateではこのPATHへの完全一致と、評価済みruntime変数名だけであることを確認する。未知変数、非実行、timeoutは合格にしない。user設定や認証storeは変更・複製しない。[shell環境の公式契約](https://learn.chatgpt.com/docs/config-file/config-advanced#shell-environment-policy)も参照する。
 
 ### 14.4 Job開始前の確認と権限適用
 
@@ -1137,6 +1141,7 @@ Turn中のJob timeoutは`turn/interrupt`を期限付きで送り、完了を確�
 | Protocol/config gate | versionと必要schemaを検証し、14.3のstrict起動、対象cwdの設定・requirements、14.4のThread応答・全pageのfeature/MCP照合がすべて成功する。schemaのhashを計算しただけでは合格にしない |
 | 決定的なsandbox probe | 同じcanonical Profileとcwdを`codex sandbox --permission-profile <fixture-profile> --include-managed-config -C <fixture>`で使用する。CLI helpに存在するこの経路とApp Server ThreadのProfile照合を併用し、モデルの試行省略を補う。既存Repositoryや設定へ書込みprobeを向けない |
 | 実Turnの動作gate | 実App Serverでfixtureをcommandから読み、`outputSchema`付きのTurnを完了させる。実際のitemとprobe結果を確認し、モデルのboolean自己申告だけでは合格にしない。実行されないprobe、モデルの単なる拒否、provider障害は`inconclusive`である |
+| shell環境 | inherit none、固定PATH、最終PATH allowlistを設定・layerから照合する。専用canaryで結合後の除去を確認し、実Turnで固定PATHと評価済みruntime変数名だけを確認する。設定読戻しやモデルの自己申告だけでは合格にしない |
 | 読み取り範囲 | 許可fixtureのランダムな非機密内容を読める。兄弟Repository、一時領域外の専用fixture、OSの一時directory、専用home内の認証path相当の非機密sentinelは読めない。親harnessから同じfileが読めることを対照確認する |
 | 非変更 | 既存fileの更新・新規作成・削除・rename・`.git`更新を試し、OS拒否を確認する。成功時も例外時も`finally`で全fixture・sentinelの内容/存在/配置hashとGit statusを比較する。変更が1件でもあれば不合格 |
 | command network | 正常に受け付ける一時loopback listenerと、harnessから疎通確認済みの非機密public endpointを使う。同じ接続がsandbox内で拒否されることを確認する。閉じた`127.0.0.1:9`、DNS失敗、単なる接続timeoutを拒否の証拠にしない。対照が失敗したら`inconclusive` |

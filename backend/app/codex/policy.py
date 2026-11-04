@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-POLICY_VERSION = "repospec-generation-v1.3-2"
+POLICY_VERSION = "repospec-generation-v1.3-3"
 DISABLED_FEATURES = (
     "plugins",
     "remote_plugin",
@@ -25,7 +25,14 @@ DISABLED_FEATURES = (
     "request_permissions_tool",
     "shell_snapshot",
 )
-SAFE_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
+SYSTEM_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
+# CLI 0.164.0 prepends its package tool directory after policy filtering.
+# Pin this reviewed installation; never accept arbitrary runtime PATH entries.
+CLI_TOOL_PATH = (
+    "/Users/futaw/.local/lib/node_modules/@openai/codex/node_modules/"
+    "@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path"
+)
+SAFE_PATH = CLI_TOOL_PATH + ":" + SYSTEM_PATH
 FIXED_CONFIG = {
     "web_search": '"disabled"',
     "project_doc_max_bytes": "0",
@@ -33,6 +40,8 @@ FIXED_CONFIG = {
     "shell_environment_policy.inherit": '"none"',
     "shell_environment_policy.ignore_default_excludes": "false",
     "shell_environment_policy.set": '{PATH="' + SAFE_PATH + '"}',
+    "shell_environment_policy.include_only": '["PATH"]',
+    "shell_environment_policy.exclude": "[]",
 }
 DEVELOPER_INSTRUCTIONS = (
     "Inspect only the selected repository, read-only. Never modify files or execute tests. "

@@ -226,6 +226,9 @@ class GenerationStore:
                 safety_check()
             if base_revision is None:
                 session.add(viewer)
+                # The Job FK must not be updated before its Viewer exists.
+                # Both writes stay in this transaction and roll back together.
+                await session.flush()
             else:
                 result = await session.execute(
                     update(ViewerModel)

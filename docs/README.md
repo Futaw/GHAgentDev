@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
 - 文書バージョン: v0.9
-- 更新日: 2026-11-04
+- 更新日: 2026-11-05
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -90,6 +90,8 @@ Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。
 2026-11-03の実Codex事前確認では、専用homeのThread検査、変更とcommand通信のOS拒否は確認できた。一方、canonical Profileでも対象外の非機密sentinelを読めたため、読み取り範囲gateは不合格である。実ユーザー設定の検査もshell環境mergeで停止し、認証付きTurn・実生成は未実行である。`GENERATION_ENABLED`の既定値falseと実際の`.env`を維持し、生成は有効化しない。合否、証拠種別と未実施事項は[安全性検証記録](./verification/2026-11-03-generation-safety.md)に記載する。
 
 2026-11-04には、一時領域への明示的なdenyを追加し、一時領域外の専用fixtureも含む読取り検査を拡充した。実CLIの読取り範囲、非変更、command通信拒否、専用homeのThread検査は合格したが、実ユーザー設定のshell環境mergeは未解決で、実Turnは未実行である。生成無効を維持する。詳細は[一時領域読取り修正の記録](./verification/2026-11-04-generation-temp-deny.md)を参照する。
+
+2026-11-05には、shell環境の最終PATH allowlist、CLI同梱tool pathの固定検査、正規のuserMessage通知、ViewerとJobの保存順序を修正した。実Codexの全必須安全gateと、専用PostgreSQL schemaでの実Viewer生成・保存、Phase 0の実Chat回帰を確認した。通常アプリの生成は無効のままであり、通常画面での生成開始を含む最終確認とユーザーによる有効化は残る。[今回の記録](./verification/2026-11-05-generation-shell.md)を参照する。
 
 ### Phase 3: Viewer内Q&A
 

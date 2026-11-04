@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -82,13 +83,27 @@ def shell_environment_diagnostics(config_read: dict) -> dict:
     shell = config_read.get("config", {}).get("shell_environment_policy")
     if not isinstance(shell, dict):
         return {"table_present": False}
+    values = shell.get("set")
+    # Tables merge across layers. The final allowlist must remove every merged
+    # value except our fixed PATH. Case variants also match CLI's glob filter.
+    safe_set = (
+        isinstance(values, dict)
+        and values.get("PATH") == SAFE_PATH
+        and all(
+            isinstance(key, str)
+            and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) is not None
+            and isinstance(value, str)
+            and (key.upper() != "PATH" or key == "PATH")
+            for key, value in values.items()
+        )
+    )
     matches = {
         "inherit": shell.get("inherit") == "none",
         "ignore_default_excludes": shell.get("ignore_default_excludes") is False,
-        "set": shell.get("set") == {"PATH": SAFE_PATH},
-        "include_only": shell.get("include_only") in (None, []),
+        "set": safe_set,
+        "include_only": shell.get("include_only") == ["PATH"],
         "exclude": shell.get("exclude") in (None, []),
-        "filters": shell.get("filters") in (None, []),
+        "filters": shell.get("filters") in (None, [], {}),
         "experimental_use_profile": shell.get("experimental_use_profile") in (None, False),
     }
     fields = {}
@@ -112,7 +127,6 @@ def shell_environment_diagnostics(config_read: dict) -> dict:
             "layer_sources": sources,
             "effective_origin": kind if kind in SOURCE_TYPES else "unreported",
         }
-    values = shell.get("set")
     return {
         "table_present": True,
         "fields": fields,
