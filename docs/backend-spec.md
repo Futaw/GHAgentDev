@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
 - 文書バージョン: v0.9
-- 更新日: 2026-11-05
+- 更新日: 2026-11-06
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -275,6 +275,8 @@ POST   /api/generation-jobs/{job_id}/retry
 ```
 
 ThemeとDensityを同時に扱う。詳細なrequestとresponseは[Phase 2 詳細設計書](./phase-2-detailed-design.md)を参照する。
+
+生成の保存先PostgreSQLはUTF8を必須とする。非UTF8ではJob作成・モデルTurn前に`503 DATABASE_ENCODING_UNSUPPORTED / retryable:false`で停止する。client_encodingがUTF8でもserver_encodingがEUC_JP等なら受理しない。接続文字列・生成内容をエラーへ含めない。既存DBや認証を自動変更せず、[UTF8 DB準備手順](./verification/2026-11-06-database-encoding.md)を案内する。
 
 生成受付では`GENERATION_ENABLED=false`を`503 GENERATION_DISABLED`、接続不可を`503 CODEX_UNAVAILABLE`、接続できるが安全設定確認に失敗した場合を`503 CODEX_SANDBOX_UNSUPPORTED`で返す。後者は非retryableとし、内部原因はtrace ID付きの安全なログへ記録する。受付後のJob固有確認失敗も同じcodeで非保存とする。既存の表示・例外処理には後続の実装修正が必要である。
 

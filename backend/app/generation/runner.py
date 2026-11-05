@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,7 @@ from backend.app.generation.security import (
     GenerationPreflight,
     GenerationSecurityError,
 )
-from backend.app.generation.store import GenerationStore
+from backend.app.generation.store import GenerationDatabaseEncodingError, GenerationStore
 from backend.app.settings import Settings
 from backend.app.viewers.document import (
     canonical_document_json,
@@ -82,6 +83,7 @@ class GenerationRunner:
     async def inspect_security(self) -> None:
         if not self.codex.connected:
             raise CodexConnectionError("Codex unavailable")
+        await self.store.require_utf8()
         try:
             await self.codex.ensure_generation_contract()
             inspection = GenerationPreflight(self.codex, uuid4())
@@ -120,7 +122,9 @@ class GenerationRunner:
         events = self.event_buffer(job_id)
         temporary_ref = generation_ref(job_id)
         new_ref: str | None = None
+        operation = "preparing_repository"
         try:
+            await self.store.require_utf8()
             await events.publish("job.started", {"job_id": str(job_id), "status": "running"})
             job = await self._job(job_id)
             if await self.refs.resolve(str(repository_path), "HEAD") != job.commit_sha:
@@ -128,10 +132,12 @@ class GenerationRunner:
                     "GENERATION_FAILED", "RepositoryのCommitが変更されました。", True
                 )
             await self.refs.create(str(repository_path), temporary_ref, job.commit_sha)
+            operation = "generating_document"
             document = await asyncio.wait_for(
                 self._generate(job, repository_path),
                 timeout=self.settings.generation_timeout_seconds,
             )
+            operation = "validating_document"
             await self._phase(job_id, "validating_document")
             try:
                 await self.sources.validate(
@@ -151,9 +157,11 @@ class GenerationRunner:
                 },
             )
             await self._cancel_point(job_id)
+            operation = "rendering_html"
             await self._phase(job_id, "rendering_html")
             html = render_viewer_document(document)
             await self._cancel_point(job_id)
+            operation = "sanitizing_html"
             await self._phase(job_id, "sanitizing_html")
             try:
                 html = sanitize_viewer_html(html, repository_github_url)
@@ -163,11 +171,13 @@ class GenerationRunner:
                 ) from exc
             await self._cancel_point(job_id)
             self.inspections[job_id].assert_current()
+            operation = "loading_job_for_save"
             await self._phase(job_id, "saving_viewer")
             current = await self._job(job_id)
             viewer_id = current.viewer_id or uuid4()
             revision = (current.base_viewer_revision or 0) + 1
             new_ref = viewer_revision_ref(viewer_id, revision)
+            operation = "creating_viewer_ref"
             await self.refs.create(str(repository_path), new_ref, current.commit_sha)
             now = current.updated_at
             viewer = ViewerModel(
@@ -191,6 +201,7 @@ class GenerationRunner:
                 updated_at=now,
             )
             self.inspections[job_id].assert_current()
+            operation = "saving_viewer"
             saved = await self.store.save_viewer(
                 job_id,
                 viewer,
@@ -199,6 +210,7 @@ class GenerationRunner:
             )
             if not saved:
                 raise GenerationRunError("VIEWER_CHANGED", "Viewerの状態が変更されました。", True)
+            operation = "cleaning_generation_ref"
             await self.refs.delete(str(repository_path), temporary_ref)
             if current.base_viewer_revision:
                 await self.refs.delete(
@@ -216,6 +228,13 @@ class GenerationRunner:
         except (TimeoutError, CodexTimeoutError):
             await self._stop_job(job_id)
             await self._fail(job_id, "CODEX_TIMEOUT", "Viewer生成がタイムアウトしました。", True)
+        except GenerationDatabaseEncodingError:
+            await self._fail(
+                job_id,
+                "DATABASE_ENCODING_UNSUPPORTED",
+                "Viewer生成にはUTF8のPostgreSQLデータベースが必要です。",
+                False,
+            )
         except GenerationSecurityError as exc:
             LOGGER.warning(
                 "Generation safety check failed job_id=%s trace_id=%s classification=%s",
@@ -234,8 +253,20 @@ class GenerationRunner:
             await self._fail(job_id, "CODEX_UNAVAILABLE", "Codexとの接続が切断されました。", True)
         except GenerationRunError as exc:
             await self._fail(job_id, exc.code, str(exc), exc.retryable)
-        except Exception:
-            LOGGER.error("Generation failed job_id=%s trace_id=%s", job_id, job_id)
+        except Exception as exc:
+            state = getattr(getattr(exc, "orig", None), "sqlstate", None)
+            state = (
+                state if isinstance(state, str) and re.fullmatch(r"[A-Z0-9]{5}", state) else None
+            )
+            LOGGER.error(
+                "Generation failed job_id=%s trace_id=%s operation=%s "
+                "classification=%s sqlstate=%s",
+                job_id,
+                job_id,
+                operation,
+                type(exc).__name__,
+                state,
+            )
             await self._fail(job_id, "GENERATION_FAILED", "Viewerを生成できませんでした。", True)
         finally:
             inspection = self.inspections.pop(job_id, None)

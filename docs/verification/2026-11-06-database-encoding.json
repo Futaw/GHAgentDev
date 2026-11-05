@@ -1,0 +1,81 @@
+{
+  "date": "2026-11-06",
+  "base_commit": "4bbc728176dddf1dded2b6ae6ddbf32f4d4b694d",
+  "status": "blocked_on_utf8_database_setup",
+  "phase_2_complete": false,
+  "generation_enabled": true,
+  "generation_flag_changed_by": "user",
+  "real_viewer_runs": {
+    "ui_job": "3e986578-b5df-49b9-8686-6d11643a8a44",
+    "diagnostic_job": "0eca5352-89b5-4ff7-a9f8-ee28ec166faf",
+    "status": "failed",
+    "operation": "saving_viewer",
+    "viewer_saved": false,
+    "exception_class": "DBAPIError",
+    "sqlstate": "22P05"
+  },
+  "database": {
+    "server_encoding": "EUC_JP",
+    "client_encoding": "UTF8",
+    "server_version_num": 170000,
+    "fixed_unicode_select": {
+      "ordinary_japanese": "passed",
+      "emoji": "22P05",
+      "em_dash": "22P05"
+    },
+    "exact_generated_character_identified": false,
+    "new_utf8_database_created": false
+  },
+  "verification": {
+    "backend": {
+      "passed": 184
+    },
+    "frontend": {
+      "passed": 30
+    },
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "eslint": "passed",
+    "typescript_vite_build": "passed",
+    "non_utf8_real_preflight": "rejected_before_model_turn",
+    "preparation_real_dry_run": "passed",
+    "preparation_real_create": "not_run",
+    "utf8_normal_ui_save": "not_run",
+    "sandbox_gates": {
+      "passed": 9,
+      "scope": "prior_main_recheck_same_policy_not_rerun_for_storage_change",
+      "policy": "repospec-generation-v1.3-3",
+      "cli": "0.164.0"
+    }
+  },
+  "preparation_dry_run": {
+    "target_database": "repospec_viewer_utf8",
+    "target_exists": false,
+    "can_create_database": true,
+    "created": false,
+    "config_changed": false,
+    "data_copied": false
+  },
+  "cleanup": {
+    "source_hash_unchanged": true,
+    "git_status_clean": true,
+    "repospec_refs_remaining": 0,
+    "generation_enabled_by_user": true,
+    "viewer_count": 0,
+    "active_jobs": 0,
+    "diagnostic_process_cleanup": "passed",
+    "probe_rows_rolled_back": true,
+    "own_test_ref_removed": true,
+    "database_created": false,
+    "config_changed_by_agent": false,
+    "git_status_scope": "managed_test_repository_before_and_after_generation"
+  },
+  "remaining": [
+    "user_create_empty_utf8_database",
+    "user_change_database_name_and_restart_with_generation_disabled",
+    "verify_encoding_and_migration",
+    "register_public_repository_in_new_database",
+    "reenable_generation_after_readiness_check",
+    "normal_ui_create_regenerate_cancel_delete_desktop_mobile"
+  ]
+}

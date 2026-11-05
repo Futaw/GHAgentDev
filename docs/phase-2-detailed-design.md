@@ -1,7 +1,7 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
 - 文書バージョン: v1.3
-- 更新日: 2026-11-05
+- 更新日: 2026-11-06
 - ステータス: 安全設定の設計改訂・実装修正待ち・実Codex動作gate未完了
 - 対象Phase: Phase 2「Viewer生成と保存」
 
@@ -1482,6 +1482,8 @@ PR #24の生成・検証・保存パイプラインを維持し、次の安全�
 6. 下記の手動確認を行い、すべての必須gate合格後だけ、管理者が`GENERATION_ENABLED=true`を設定する。
 
 ### 21.3 実装後の手動確認手順
+
+保存先PostgreSQLのserver_encodingはUTF8を必須とする。安全性の9gateとは別の保存前提である。非UTF8では受付前とrunner開始時に停止し、`DATABASE_ENCODING_UNSUPPORTED`で案内する。データの文字置換や検証緩和では回避せず、旧DBを保全した別UTF8 DBを用意する。[実測・手順](./verification/2026-11-06-database-encoding.md)を参照する。
 
 1. 設定・CLI・認証状態を変更せず、使用CLI、OS、schema hash、起動policy versionを記録する。`.env`の初期値はfalseのままとする。固定CLIが存在しない場合はその失敗を報告し、別CLIへfallbackしない。
 2. 改修後の`python -m backend.scripts.verify_generation_sandbox --codex /Users/futaw/.local/bin/codex --timeout 120`を明示実行する。14.6の各証拠と全fixtureの非変更・cleanup、exit codeを確認する。失敗・未実行・判定不能ならそこで有効化を止める。
