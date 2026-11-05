@@ -1,6 +1,6 @@
 # Phase 0・1 手動テストガイド
 
-- 更新日: 2026-10-20
+- 更新日: 2026-11-06
 - 対象: RepoSpec Viewer Phase 0「Codex接続と最小チャット」、Phase 1「Repository管理」
 - 想定環境: macOS、PostgreSQL 17、Python 3.12以上、Node.js 24、Codex CLI
 
@@ -122,8 +122,12 @@ pg_isready -h 127.0.0.1 -p 5432
 手動テスト専用Databaseをまだ作っていない場合だけ実行する。
 
 ```bash
-createdb -h 127.0.0.1 -U postgres repospec_viewer_manual
+createdb -h 127.0.0.1 -U postgres \
+  --template=template0 --encoding=UTF8 --locale-provider=libc \
+  --lc-collate=C --lc-ctype=C repospec_viewer_manual
 ```
+
+Databaseの文字コードはUTF8を明示する。既存のEUC_JP等のDBを削除・作り直す操作はしない。[旧DBを残したUTF8切替手順](./verification/2026-11-06-database-encoding.md)を参照する。
 
 次にMigrationを適用する。
 

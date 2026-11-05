@@ -217,6 +217,8 @@ async def git(path: Path, *arguments: str) -> str:
     "fault",
     [
         "none",
+        "database_encoding",
+        "save_database_error",
         "baseline",
         "baseline_timeout",
         "baseline_disconnected",
@@ -235,7 +237,9 @@ async def git(path: Path, *arguments: str) -> str:
         "save_epoch",
     ],
 )
-async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault: str) -> None:
+async def test_generation_api_saves_only_validated_viewer(
+    tmp_path: Path, fault: str, monkeypatch, caplog
+) -> None:
     from backend.app.main import create_app
 
     repository_id = uuid4()
@@ -318,6 +322,13 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
         generation_timeout_seconds=0.1 if fault == "turn_deadline" else 900,
     )
     app = create_app(settings, codex)  # type: ignore[arg-type]
+    if fault == "database_encoding":
+        from backend.app.generation.store import GenerationDatabaseEncodingError, GenerationStore
+
+        async def reject_encoding(self):
+            raise GenerationDatabaseEncodingError("generation_database_requires_utf8")
+
+        monkeypatch.setattr(GenerationStore, "require_utf8", reject_encoding)
     async with app.router.lifespan_context(app):
         # Match PostgreSQL's FK enforcement instead of relying on SQLite defaults.
         event.listen(
@@ -327,6 +338,20 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
         )
         async with app.state.database.engine.connect() as connection:
             await connection.execute(text("PRAGMA foreign_keys=ON"))
+        if fault == "save_database_error":
+            from sqlalchemy.exc import DBAPIError
+
+            class DriverFailure(Exception):
+                sqlstate = "22P05"
+
+            async def fail_save(*args, **kwargs):
+                raise DBAPIError(
+                    "never-log-sensitive-statement",
+                    {"value": "never-log-sensitive-value"},
+                    DriverFailure(),
+                )
+
+            app.state.generation_store.save_viewer = fail_save
         if fault == "save_epoch":
             original_save = app.state.generation_store.save_viewer
 
@@ -351,17 +376,24 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
                 headers={"Idempotency-Key": "a" * 32},
                 json=payload,
             )
-            if fault.startswith("baseline"):
+            if fault.startswith("baseline") or fault == "database_encoding":
                 assert created.status_code == 503
                 expected_code = (
                     "CODEX_UNAVAILABLE"
                     if fault == "baseline_disconnected"
+                    else "DATABASE_ENCODING_UNSUPPORTED"
+                    if fault == "database_encoding"
                     else "CODEX_SANDBOX_UNSUPPORTED"
                 )
                 assert created.json()["code"] == expected_code
                 assert created.json()["retryable"] is (fault == "baseline_disconnected")
                 assert created.json()["trace_id"]
                 assert not any(method == "turn/start" for method, _ in codex.calls)
+                if fault == "database_encoding":
+                    assert (
+                        await app.state.generation_store.get_idempotent_job(repository_id, "a" * 32)
+                        is None
+                    )
                 return
             assert created.status_code == 202
             job_id = created.json()["id"]
@@ -378,6 +410,7 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
                     "disconnect": "CODEX_UNAVAILABLE",
                     "turn_timeout": "CODEX_TIMEOUT",
                     "turn_deadline": "CODEX_TIMEOUT",
+                    "save_database_error": "GENERATION_FAILED",
                 }
                 assert error["code"] == expected.get(fault, "CODEX_SANDBOX_UNSUPPORTED"), (
                     detail.json()
@@ -385,6 +418,10 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
                 assert error["trace_id"] == job_id
                 viewers = await client.get(f"/api/repositories/{repository_id}/viewers")
                 assert viewers.json()["items"] == []
+                if fault == "save_database_error":
+                    assert "operation=saving_viewer" in caplog.text
+                    assert "sqlstate=22P05" in caplog.text
+                    assert "never-log-sensitive" not in caplog.text
                 if fault in {"config_timeout", "disconnect", "thread_missing", "thread_timeout"}:
                     assert codex.turn_count == 0
                 if fault == "repair_change":
@@ -452,8 +489,10 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
 
 
 @pytest.mark.asyncio
-async def test_generation_is_disabled_by_default(tmp_path: Path) -> None:
+async def test_generation_is_disabled_by_default(tmp_path: Path, monkeypatch) -> None:
     from backend.app.main import create_app
+
+    monkeypatch.delenv("GENERATION_ENABLED", raising=False)
 
     database_url = f"sqlite+aiosqlite:///{tmp_path / 'disabled.db'}"
     engine = create_async_engine(database_url)
@@ -462,7 +501,10 @@ async def test_generation_is_disabled_by_default(tmp_path: Path) -> None:
     await engine.dispose()
     app = create_app(
         Settings(
-            database_url=database_url, workspace_root=tmp_path / "ws", test_chat_workspace=tmp_path
+            _env_file=None,
+            database_url=database_url,
+            workspace_root=tmp_path / "ws",
+            test_chat_workspace=tmp_path,
         ),
         StructuredCodex({}),  # type: ignore[arg-type]
     )

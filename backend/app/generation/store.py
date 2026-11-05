@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy import delete, exists, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.app.generation.models import GenerationJobModel, GenerationStatus, ViewerModel
@@ -15,9 +15,24 @@ class GenerationReservationError(RuntimeError):
     pass
 
 
+class GenerationDatabaseEncodingError(RuntimeError):
+    """A fixed classification; never include connection details or stored text."""
+
+
 class GenerationStore:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
         self.sessions = sessions
+
+    async def require_utf8(self) -> None:
+        async with self.sessions() as session:
+            dialect = session.get_bind().dialect.name
+            if dialect == "sqlite":  # Isolated tests; SQLite text is Unicode.
+                return
+            if (
+                dialect != "postgresql"
+                or await session.scalar(text("SHOW server_encoding")) != "UTF8"
+            ):
+                raise GenerationDatabaseEncodingError("generation_database_requires_utf8")
 
     async def get_viewer(self, viewer_id: UUID) -> ViewerModel | None:
         async with self.sessions() as session:

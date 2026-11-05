@@ -17,7 +17,7 @@ GitHub RepositoryのソースコードをCodex App Serverで調査し、読み�
 - Default Branch、Commit SHA、最終同期日時のPostgreSQL保存
 - 容量・ファイル数・timeout制限とRepository単位の排他制御
 
-Viewer生成はPhase 2で追加します。
+Viewer生成・保存の実装は追加済みで、Phase 2の最終検証を進めています。
 
 ## 必要な環境
 
@@ -25,7 +25,7 @@ Viewer生成はPhase 2で追加します。
 - Node.js 24
 - Codex CLI（`codex`コマンド）
 - Codex CLIで利用可能なChatGPTアカウント
-- PostgreSQL
+- PostgreSQL（Databaseの文字コードはUTF8）
 
 ## セットアップ
 
@@ -38,6 +38,8 @@ npm --prefix frontend install
 ```
 
 `.env`の`DATABASE_URL`に作成済みPostgreSQL Databaseの接続先を、`TEST_CHAT_WORKSPACE`にはCodexが読み取り可能なテスト用ディレクトリを指定します。Phase 0のTurnは`approvalPolicy: never`、`readOnly` sandbox、network無効で実行されます。現在のローカルCLI schemaでは読み取りルートの追加制限を指定できないため、信頼できるローカル・単一ユーザー環境だけで使用してください。
+
+Viewer生成には、PostgreSQLのserver_encodingがUTF8であることが必要です。client_encodingだけの変更では対応できません。既存DBがEUC_JP等の場合は、[旧DBを残してUTF8 DBを用意する手順](docs/verification/2026-11-06-database-encoding.md)を参照してください。
 
 初回起動時とschema更新時はMigrationを明示的に実行します。アプリ起動時には自動Migrationしません。
 

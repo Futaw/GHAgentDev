@@ -27,6 +27,7 @@ it.each([
   ['GENERATION_DISABLED', 'Viewer生成は現在無効です。安全性の事前確認が完了していません。'],
   ['CODEX_UNAVAILABLE', 'Codexに接続できません。接続状態を確認してから再試行してください。'],
   ['CODEX_SANDBOX_UNSUPPORTED', 'Codexの安全設定を確認できないため、生成を開始しませんでした。'],
+  ['DATABASE_ENCODING_UNSUPPORTED', '保存先DBがUTF8ではないため、生成を開始しませんでした。'],
 ])('shows %s, trace, preserves input and never retries automatically', async (code, text) => {
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
     if (init?.method === 'POST') return new Response(JSON.stringify({ code, detail: '安全な説明', trace_id: 'trace-test', retryable: false }), { status: 503 })
