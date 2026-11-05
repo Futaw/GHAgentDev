@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.app.repositories.models import Base, RepositoryModel
@@ -134,6 +135,22 @@ class StructuredCodex:
         await asyncio.sleep(0)
         messages = [
             (
+                "item/started",
+                {
+                    "threadId": "thread-generation",
+                    "turnId": "turn-generation",
+                    "item": {"type": "userMessage", "id": "user-fixture", "content": []},
+                },
+            ),
+            (
+                "item/completed",
+                {
+                    "threadId": "thread-generation",
+                    "turnId": "turn-generation",
+                    "item": {"type": "userMessage", "id": "user-fixture", "content": []},
+                },
+            ),
+            (
                 "item/agentMessage/delta",
                 {
                     "threadId": "thread-generation",
@@ -145,7 +162,11 @@ class StructuredCodex:
                 "turn/completed",
                 {
                     "threadId": "thread-generation",
-                    "turn": {"id": "turn-generation", "status": "completed"},
+                    "turn": {
+                        "id": "turn-generation",
+                        "status": "completed",
+                        "items": [{"type": "userMessage", "id": "user-fixture", "content": []}],
+                    },
                 },
             ),
         ]
@@ -298,6 +319,14 @@ async def test_generation_api_saves_only_validated_viewer(tmp_path: Path, fault:
     )
     app = create_app(settings, codex)  # type: ignore[arg-type]
     async with app.router.lifespan_context(app):
+        # Match PostgreSQL's FK enforcement instead of relying on SQLite defaults.
+        event.listen(
+            app.state.database.engine.sync_engine,
+            "connect",
+            lambda connection, _: connection.execute("PRAGMA foreign_keys=ON"),
+        )
+        async with app.state.database.engine.connect() as connection:
+            await connection.execute(text("PRAGMA foreign_keys=ON"))
         if fault == "save_epoch":
             original_save = app.state.generation_store.save_viewer
 

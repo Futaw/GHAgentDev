@@ -16,6 +16,8 @@ def test_startup_policy_is_fixed_and_validation_omits_transport():
     assert "--listen" not in validation
     assert "--print-startup-config" in validation
     assert 'shell_environment_policy.inherit="none"' in validation
+    assert 'shell_environment_policy.include_only=["PATH"]' in validation
+    assert "shell_environment_policy.exclude=[]" in validation
 
 
 @pytest.mark.asyncio
@@ -60,3 +62,33 @@ async def test_schema_missing_required_runtime_field_is_rejected(monkeypatch, tm
     monkeypatch.setattr("backend.app.codex.contract.cli_output", output)
     with pytest.raises(RuntimeError, match="schema_fields_missing"):
         await verify_contract("/fixed/codex", tmp_path, 1)
+
+
+def test_runtime_package_manifest_and_path_are_pinned(monkeypatch, tmp_path):
+    from backend.app.codex.contract import verify_runtime_package
+
+    tools = tmp_path / "codex-path"
+    tools.mkdir()
+    (tools / "rg").write_text("fixture")
+    monkeypatch.setattr("backend.app.codex.contract.CLI_TOOL_PATH", str(tools))
+    manifest = {
+        "layoutVersion": 1,
+        "version": "0.164.0",
+        "target": "aarch64-apple-darwin",
+        "variant": "codex",
+        "entrypoint": "bin/codex",
+        "resourcesDir": "codex-resources",
+        "pathDir": "codex-path",
+    }
+    path = tmp_path / "codex-package.json"
+    path.write_text(json.dumps(manifest))
+    assert len(verify_runtime_package()) == 64
+    manifest["pathDir"] = "unreviewed-tools"
+    path.write_text(json.dumps(manifest))
+    with pytest.raises(RuntimeError, match="package_unreviewed"):
+        verify_runtime_package()
+    link = tmp_path / "link"
+    link.symlink_to(tools, target_is_directory=True)
+    monkeypatch.setattr("backend.app.codex.contract.CLI_TOOL_PATH", str(link))
+    with pytest.raises(RuntimeError, match="path_unreviewed"):
+        verify_runtime_package()

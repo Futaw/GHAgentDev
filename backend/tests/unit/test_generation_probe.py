@@ -1,3 +1,5 @@
+import pytest
+
 from backend.scripts.verify_generation_sandbox import assess_probes
 
 
@@ -168,3 +170,66 @@ def test_os_temporary_sentinel_is_required_for_read_gate():
     assert assess_probes(rows, "expected", True)["sandbox_read"]["status"] == "inconclusive"
     rows["os_tmp_sentinel"] = {"status": "read"}
     assert assess_probes(rows, "expected", True)["sandbox_read"]["status"] == "failed"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        '/bin/cat "/fixture with spaces/allowed.txt"',
+        "/bin/zsh -c '/bin/cat \"/fixture with spaces/allowed.txt\"'",
+    ],
+)
+def test_command_evidence_handles_quoting(command):
+    from backend.scripts.verify_generation_sandbox import command_matches
+
+    assert command_matches(command, ["/bin/cat", "/fixture with spaces/allowed.txt"])
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo /bin/cat /fixture/allowed.txt",
+        "/bin/cat /fixture/allowed.txt; true",
+        '/bin/sh -c "echo /bin/cat /fixture/allowed.txt"',
+        "'unterminated",
+        None,
+    ],
+)
+def test_command_evidence_rejects_substrings_and_extra_commands(command):
+    from backend.scripts.verify_generation_sandbox import command_matches
+
+    assert not command_matches(command, ["/bin/cat", "/fixture/allowed.txt"])
+
+
+@pytest.mark.parametrize("extra,exit_code", [({}, 0), ({"REPOSPEC_CANARY": "sensitive"}, 24)])
+async def test_environment_probe_checks_without_printing_values(tmp_path, extra, exit_code):
+    from backend.app.codex.policy import SAFE_PATH
+    from backend.app.codex.process import run_command
+    from backend.scripts.verify_generation_sandbox import ENVIRONMENT_CHECK, ENVIRONMENT_MARKER
+
+    script = tmp_path / "environment-check.sh"
+    script.write_text(ENVIRONMENT_CHECK)
+    result = await run_command(
+        "/bin/sh", [str(script)], tmp_path, 5, env={"PATH": SAFE_PATH, **extra}
+    )
+    assert result.returncode == exit_code
+    assert result.stdout.strip() == (ENVIRONMENT_MARKER.encode() if exit_code == 0 else b"")
+    assert b"sensitive" not in result.stdout + result.stderr
+
+
+def test_environment_failure_is_not_overwritten_by_later_success():
+    from backend.scripts.verify_generation_sandbox import ENVIRONMENT_MARKER, assess_environment
+
+    expected = ["/bin/sh", "-c", "fixture"]
+    success = {
+        "command": "/bin/sh -c fixture",
+        "exitCode": 0,
+        "aggregatedOutput": ENVIRONMENT_MARKER + "\n",
+    }
+    assert assess_environment([success], expected, "completed")["status"] == "passed"
+    for exit_code, status in [(21, "failed"), (24, "failed"), (71, "inconclusive")]:
+        failure = {**success, "exitCode": exit_code, "aggregatedOutput": ""}
+        for items in ([failure, success], [success, failure]):
+            assert assess_environment(items, expected, "completed")["status"] == status
+    assert assess_environment([], expected, "completed")["status"] == "inconclusive"
+    assert assess_environment([success], expected, "failed")["status"] == "inconclusive"

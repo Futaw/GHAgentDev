@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
 - 文書バージョン: v0.9
-- 更新日: 2026-11-04
+- 更新日: 2026-11-05
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -127,6 +127,8 @@ Phase 0 ChatはRepository管理とは独立し、環境設定の`TEST_CHAT_WORKS
 MVPのCodexは読み取り専用である。コマンド実行、ファイル変更、追加権限のserver requestが届いた場合、Codex gatewayは自動承認せず拒否し、セキュリティイベントを記録する。
 
 承認UIは、将来Repositoryの更新等をCodexに行わせる要求が生じた時点で、別機能として設計する。
+
+Generationのshell環境はpolicy v1.3-3で、最終allowlistをPATHだけに固定する。設定tableのset結合自体を取り除くのではなく、追加値が子環境へ渡らないことを設定検査と実Turnで確認する。CLI同梱toolの固定path・manifestと、CLIが追加するruntime変数は別に評価し、未知の追加は合格としない。詳細は[検証記録](./verification/2026-11-05-generation-shell.md)を参照する。
 
 ## 4. 認証
 

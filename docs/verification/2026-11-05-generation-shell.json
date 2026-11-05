@@ -1,0 +1,377 @@
+{
+  "policy_version": "repospec-generation-v1.3-3",
+  "generation_enabled": false,
+  "tests": {
+    "backend_passed": 165,
+    "frontend_passed": 29,
+    "ruff": "passed",
+    "eslint": "passed",
+    "typescript_vite_build": "passed",
+    "build_note": "dependency_zod_pure_annotation_warning"
+  },
+  "full_safety": {
+    "behavior_gate": true,
+    "command_item_count": 2,
+    "current_check": "fixture_cleanup",
+    "delete_control": {
+      "cleanup": {
+        "group_absent": true,
+        "parent_returncode": 0,
+        "pgid": 16657,
+        "pid": 16657,
+        "pipes_eof": true,
+        "signal_error": false,
+        "status": "passed"
+      },
+      "status": "passed"
+    },
+    "fixture_cleanup": "passed",
+    "gates": {
+      "additional_permissions": {
+        "evidence": "real_turn",
+        "reason": "never_profile_unchanged_permission_tool_disabled",
+        "status": "passed"
+      },
+      "command_network": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "external_tools": {
+        "evidence": "real_turn",
+        "reason": "runtime_inventory_and_observed_items",
+        "status": "passed"
+      },
+      "fixture_integrity": {
+        "evidence": "real_cli",
+        "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+        "status": "passed"
+      },
+      "non_modification": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "protocol_config": {
+        "evidence": "real_cli",
+        "reason": "cwd_config_requirements_thread_runtime_checked",
+        "status": "passed"
+      },
+      "real_turn": {
+        "evidence": "real_turn",
+        "reason": "structured_output_and_command_item",
+        "status": "passed"
+      },
+      "sandbox_read": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "shell_environment": {
+        "evidence": "real_turn",
+        "reason": "fixed_path_and_runtime_environment_names_checked",
+        "status": "passed"
+      }
+    },
+    "git_status_unchanged": true,
+    "isolated_protocol": {
+      "evidence": "real_cli",
+      "reason": "canonical_profile_runtime_checked",
+      "status": "passed"
+    },
+    "non_temp_fixture_control": true,
+    "os": "macOS-26.6.2-arm64-arm-64bit",
+    "parent_network_control": "passed",
+    "parent_read_control": "passed",
+    "partial": false,
+    "policy_version": "repospec-generation-v1.3-3",
+    "probe_results": {
+      "allowed": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 0,
+          "pgid": 16658,
+          "pid": 16658,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "sha256": "86fba7aff5221727e247a133327524faf94161fa710015b1ec0636ec43755582",
+        "status": "read"
+      },
+      "auth_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16667,
+          "pid": 16667,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "create": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16678,
+          "pid": 16678,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "delete": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16681,
+          "pid": 16681,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "git_write": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16689,
+          "pid": 16689,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "loopback": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 7,
+          "pgid": 16692,
+          "pid": 16692,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "os_tmp_sentinel": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16671,
+          "pid": 16671,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "outside": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16664,
+          "pid": 16664,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "public": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 7,
+          "pgid": 16695,
+          "pid": 16695,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "rename": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16684,
+          "pid": 16684,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "sibling": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16661,
+          "pid": 16661,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      },
+      "update": {
+        "cleanup": {
+          "group_absent": true,
+          "parent_returncode": 1,
+          "pgid": 16675,
+          "pid": 16675,
+          "pipes_eof": true,
+          "signal_error": false,
+          "status": "passed"
+        },
+        "errno": 1,
+        "status": "error"
+      }
+    },
+    "process_cleanup": "passed",
+    "protocol_config_gate": true,
+    "real_approval_request": "not_observed",
+    "runtime_package_hash": "c77eb3abe21da837655153670c53ccbb89c26995ba3ccad2b72204b4670e1ad8",
+    "schema_hashes": {
+      "experimental": "85943f92ccaa9f09d20bf4bf22882c42c9a3e90ffb5a319751e872a8097e9559",
+      "stable": "6d7bed848b543088beb0f0a4f0dde99b78f494ec976ae85e4176dc2c0099025a"
+    },
+    "scope": "full",
+    "thread_turn_schema_hashes": {
+      "experimental": "22f0824fd513113a775e75a87dbbb0126fd04e23469932b838754bc6f02f1bea",
+      "stable": "45308bd3a137736f46434eb9b402dfe9e2852114dae1168bd1412328645a6bda"
+    },
+    "version": "codex-cli 0.164.0"
+  },
+  "shell_canary_auxiliary": {
+    "evidence": "real_turn_auxiliary",
+    "canary_in_config": true,
+    "path_allowlist": true,
+    "strict_command_evidence": true,
+    "executed_command_count": 1,
+    "turn_status": "completed",
+    "developer_instructions": "dedicated_read_only_diagnostic",
+    "status": "passed"
+  },
+  "viewer_postgresql": {
+    "entrypoint": "isolated_runner_fixture",
+    "evidence": "real_codex_postgresql",
+    "api_generation_enabled": false,
+    "postgresql_migration_functions": [
+      "20261001_0001",
+      "20261025_0002"
+    ],
+    "job_phase": "completed",
+    "job_status": "completed",
+    "job_error_code": null,
+    "viewer_count": 1,
+    "document_valid": true,
+    "source_reference_count": 1,
+    "html_saved": true,
+    "git_ref_matches": true,
+    "fixture_unchanged": true,
+    "temporary_generation_refs_absent": true,
+    "failed_regeneration_preserved_viewer": true,
+    "failed_regeneration_evidence": "injected_preflight_failure_real_database",
+    "generation_still_disabled": true,
+    "status": "passed",
+    "process_cleanup": "passed",
+    "schema_cleanup": "passed",
+    "fixture_cleanup": "passed",
+    "conditions": {
+      "document_type": "functional_spec",
+      "detail_level": "standard",
+      "target_audience": "engineer"
+    }
+  },
+  "chat": {
+    "evidence": "real_codex_chat",
+    "generation_enabled": false,
+    "authenticated": true,
+    "first_turn": {
+      "status": "completed",
+      "event_types": [
+        "message.delta",
+        "turn.completed",
+        "turn.started"
+      ]
+    },
+    "cancel_turn": {
+      "status": "cancelled",
+      "event_types": [
+        "turn.cancelled",
+        "turn.started"
+      ]
+    },
+    "reconnected": true,
+    "after_reconnect": {
+      "status": "completed",
+      "event_types": [
+        "message.delta",
+        "turn.completed",
+        "turn.started"
+      ]
+    },
+    "status": "passed",
+    "process_cleanup": "passed",
+    "fixture_cleanup": "passed"
+  },
+  "earlier_failures": {
+    "environment_before_runtime_path_pin": {
+      "status": "failed",
+      "process_cleanup": "passed",
+      "fixture_cleanup": "passed",
+      "reason": "runtime_path_differed_from_system_only_path"
+    },
+    "viewer_before_flush_fix": {
+      "status": "failed",
+      "phase": "saving_viewer",
+      "exception_type": "IntegrityError",
+      "viewer_count": 0,
+      "fixture_cleanup": "passed",
+      "schema_cleanup": "passed",
+      "process_cleanup": "passed",
+      "sqlite_fk_regression_before_fix": "failed"
+    }
+  },
+  "browser": {
+    "environment": "isolated_non_sensitive_fixture",
+    "width_px": 452,
+    "viewer_display": "passed",
+    "source_reference_popup": "passed",
+    "theme_density_update_without_generation": "passed",
+    "generation_disabled_error_with_trace": "passed",
+    "viewer_preserved": "passed",
+    "revision_after_appearance": 1,
+    "jobs_created": 0,
+    "screenshot": "2026-11-05-viewer-fixture.png"
+  },
+  "cleanup": {
+    "recorded_pid_pgid_remaining": 0,
+    "preview_pid_absent": true,
+    "generation_enabled": false,
+    "ui_fixture_removed": true
+  },
+  "not_completed": [
+    "normal_app_generation_enablement",
+    "normal_ui_generation_acceptance_to_save_e2e",
+    "all_block_desktop_mobile_visual_review",
+    "real_generation_ui_cancel_and_delete"
+  ],
+  "real_approval_request": "not_observed"
+}

@@ -16,6 +16,7 @@ def config_read():
                 "inherit": "none",
                 "ignore_default_excludes": False,
                 "set": {"PATH": SAFE_PATH},
+                "include_only": ["PATH"],
             },
             "apps": None,
             "mcp_servers": {"external": {"enabled": True}},

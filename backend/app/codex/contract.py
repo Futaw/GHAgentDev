@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import tempfile
 from pathlib import Path
 
-from backend.app.codex.policy import DISABLED_FEATURES, startup_arguments
+from backend.app.codex.policy import CLI_TOOL_PATH, DISABLED_FEATURES, startup_arguments
 from backend.app.codex.process import Progress, run_command
 
 # Deliberately pinned: a CLI update needs a contract review and new behavior gates.
@@ -38,6 +39,25 @@ class CliExecutionError(RuntimeError):
     def __init__(self, exit_code: int) -> None:
         super().__init__("cli_command_rejected")
         self.exit_code = exit_code
+
+
+def verify_runtime_package() -> str:
+    """Review a different installation before accepting its injected PATH."""
+    directory = Path(CLI_TOOL_PATH)
+    if directory.resolve() != directory or not (directory / "rg").is_file():
+        raise RuntimeError("cli_runtime_path_unreviewed")
+    raw = (directory.parent / "codex-package.json").read_bytes()
+    if json.loads(raw) != {
+        "layoutVersion": 1,
+        "version": "0.164.0",
+        "target": "aarch64-apple-darwin",
+        "variant": "codex",
+        "entrypoint": "bin/codex",
+        "resourcesDir": "codex-resources",
+        "pathDir": "codex-path",
+    }:
+        raise RuntimeError("cli_runtime_package_unreviewed")
+    return hashlib.sha256(raw).hexdigest()
 
 
 async def cli_output(
@@ -117,4 +137,10 @@ async def verify_contract(
                 digest.update(raw)
             hashes[mode] = digest.hexdigest()
     await command("startup_validation", startup_arguments(validation=True))
-    return {"version": version, "schema_hashes": hashes, "thread_turn_schema_hashes": pair_hashes}
+    runtime_hash = await asyncio.to_thread(verify_runtime_package)
+    return {
+        "version": version,
+        "schema_hashes": hashes,
+        "thread_turn_schema_hashes": pair_hashes,
+        "runtime_package_hash": runtime_hash,
+    }
