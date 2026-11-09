@@ -97,6 +97,8 @@ Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。
 
 2026-11-09には、利用者がUTF8 DBへ切り替えて生成を再有効化し、通常画面からの生成・保存・再生成に成功した。中止結果がfailedになる不具合とMobile表の列幅を修正した。修正を取り込んだ通常Backendでの中止・再試行、画面からの削除確定は残る。[通常画面の検証記録](./verification/2026-11-09-viewer-ui-verification.md)を参照する。
 
+その後、PR #32マージ・通常Backend再起動後に、中止のcancelled表示、同条件再試行による保存、試験用Viewerの画面からの削除とDashboard復帰を確認した。回帰テストと実CLIの必須9gateも合格し、ローカル・単一ユーザー・Public Repository・固定CLIの対象範囲でPhase 2を完了した。[最終受入記録](./verification/2026-11-09-phase-2-acceptance.md)に、証拠種別とPhase 3以降の課題を記載する。
+
 ### Phase 3: Viewer内Q&A
 
 - Viewer右ペインでの質問

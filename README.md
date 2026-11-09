@@ -17,7 +17,7 @@ GitHub RepositoryのソースコードをCodex App Serverで調査し、読み�
 - Default Branch、Commit SHA、最終同期日時のPostgreSQL保存
 - 容量・ファイル数・timeout制限とRepository単位の排他制御
 
-Viewer生成・保存の実装は追加済みで、Phase 2の最終検証を進めています。
+Viewerの生成・保存・再生成・中止・削除を実装し、ローカル環境でPhase 2の完了確認を行いました。[検証結果と対象範囲](docs/verification/2026-11-09-phase-2-acceptance.md)を参照してください。
 
 ## 必要な環境
 
