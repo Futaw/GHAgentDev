@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
 - 文書バージョン: v0.9
-- 更新日: 2026-11-06
+- 更新日: 2026-11-09
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -94,6 +94,8 @@ Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。
 2026-11-05には、shell環境の最終PATH allowlist、CLI同梱tool pathの固定検査、正規のuserMessage通知、ViewerとJobの保存順序を修正した。実Codexの全必須安全gateと、専用PostgreSQL schemaでの実Viewer生成・保存、Phase 0の実Chat回帰を確認した。通常アプリの生成は無効のままであり、通常画面での生成開始を含む最終確認とユーザーによる有効化は残る。[今回の記録](./verification/2026-11-05-generation-shell.md)を参照する。
 
 2026-11-06の通常画面確認では、EUC_JPのDBでUnicode変換エラー22P05が発生し、Viewer保存が停止した。生成前のUTF8検査と専用エラーを追加し、旧DBを残して新しいUTF8 DBを用意する手順をまとめた。DB切替後の画面E2Eは未完了。[文字コード検証記録](./verification/2026-11-06-database-encoding.md)を参照する。
+
+2026-11-09には、利用者がUTF8 DBへ切り替えて生成を再有効化し、通常画面からの生成・保存・再生成に成功した。中止結果がfailedになる不具合とMobile表の列幅を修正した。修正を取り込んだ通常Backendでの中止・再試行、画面からの削除確定は残る。[通常画面の検証記録](./verification/2026-11-09-viewer-ui-verification.md)を参照する。
 
 ### Phase 3: Viewer内Q&A
 

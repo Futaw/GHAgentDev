@@ -225,7 +225,7 @@ dd { margin: 0; line-height: 1.5; }
 .viewer-key-value-row:last-child { border-bottom: 0; }
 .viewer-scroll { max-width: 100%; overflow-x: auto; }
 .viewer-block table { width: 100%; border-collapse: collapse; }
-.viewer-block th, .viewer-block td { padding: var(--viewer-cell-pad); border: 1px solid var(--viewer-border); text-align: left; vertical-align: top; }
+.viewer-block th, .viewer-block td { min-width: 8em; padding: var(--viewer-cell-pad); border: 1px solid var(--viewer-border); text-align: left; vertical-align: top; }
 .viewer-block th { background: var(--viewer-soft); }
 .viewer-block pre { min-width: max-content; margin: 0; padding: 18px; border-radius: 9px; color: #e8eef1; background: #1f292f; }
 .viewer-callout { padding: 16px; border-left: 4px solid var(--viewer-accent); background: var(--viewer-soft); }

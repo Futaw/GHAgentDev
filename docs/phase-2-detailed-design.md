@@ -1,8 +1,8 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
 - 文書バージョン: v1.3
-- 更新日: 2026-11-06
-- ステータス: 安全設定の設計改訂・実装修正待ち・実Codex動作gate未完了
+- 更新日: 2026-11-09
+- ステータス: 通常画面の生成確認済み・中止修正後の受入確認待ち
 - 対象Phase: Phase 2「Viewer生成と保存」
 
 本文書は、[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)をPhase 2の実装へ落とし込む詳細設計書である。上位仕様と本文書が矛盾する場合は、Phase 2の範囲に限り本文書を優先する。
@@ -1250,6 +1250,7 @@ previewは組み込みの固定sampleを使い、Codexを実行しない。Theme
 - `queued / running`の間はSSE接続中も5秒間隔でJob詳細を取得し、SSE eventの取りこぼしとBackend再起動を補完する
 - `completed`でViewerを自動表示し、手動の「Viewerを開く」も残す
 - `cancelled`、または`failed`で`error_retryable=true`の場合は保存済み条件から再試行できる
+- Job見出しは実行中・完了・失敗・中止を区別する。DBに中止要求があるTurnの`interrupted`はcancelledへ進め、要求なしの中断と通常のfailedは失敗のままとする。安全性違反は中止要求によって成功・通常中止へ読み替えない。検証済みの終端通知がある場合は共用接続を保持し、終端未確認の場合は停止処理を維持する。
 
 ### 16.4 Viewer画面
 
@@ -1508,7 +1509,7 @@ PR #24の生成・検証・保存パイプラインを維持し、次の安全�
 9. 再生成失敗時に既存Viewerが失われない。
 10. Viewerが生成元CommitをGit refで保持する。
 11. 同じRepositoryのSync、Generation、削除が競合しない。
-12. DesktopとMobileでblockの種類と情報量に応じた表示が崩れない。
+12. DesktopとMobileでblockの種類と情報量に応じた表示が崩れない。多列表はセルの最小幅を保ち、表内部で横スクロールする。
 13. Backend、Frontend、migration、lint、build、E2Eが成功する。
 14. API、SSE、ログへ機密情報、絶対path、Codexの生outputが漏れない。
 15. 14.6の全必須gateが合格し、21.3の手動確認を完了している。未実行・判定不能を完了へ含めない。

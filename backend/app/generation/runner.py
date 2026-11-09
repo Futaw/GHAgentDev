@@ -48,7 +48,9 @@ class GenerationRunError(RuntimeError):
 @dataclass
 class TurnCapture:
     thread_id: str
+    job_id: UUID | None = None
     turn_id: str | None = None
+    terminal_status: str | None = None
     chunks: list[str] = field(default_factory=list)
     completed: asyncio.Future[str] | None = None
     approval_rejected: bool = False
@@ -311,7 +313,7 @@ class GenerationRunner:
             raise
         except Exception as exc:
             raise GenerationSecurityError("thread_preflight_failed") from exc
-        capture = TurnCapture(thread_id=thread_id)
+        capture = TurnCapture(thread_id=thread_id, job_id=job.id)
         self.captures[thread_id] = capture
         await self.store.set_phase(job.id, "analyzing_repository", codex_thread_id=thread_id)
         try:
@@ -362,6 +364,7 @@ class GenerationRunner:
         except Exception as exc:
             raise GenerationSecurityError("turn_preflight_failed") from exc
         capture.turn_id = None
+        capture.terminal_status = None
         capture.chunks.clear()
         capture.approval_rejected = False
         capture.completed = asyncio.get_running_loop().create_future()
@@ -457,8 +460,20 @@ class GenerationRunner:
                 capture.completed.set_exception(GenerationSecurityError("unexpected_tool_item"))
                 return
             status = params.get("turn", {}).get("status")
+            if status in {"completed", "failed", "interrupted"}:
+                capture.terminal_status = status
             if status == "completed" and not capture.approval_rejected:
                 capture.completed.set_result("".join(capture.chunks))
+            elif (
+                status == "interrupted"
+                and capture.job_id is not None
+                and not capture.approval_rejected
+                and await self.store.is_cancel_requested(capture.job_id)
+            ):
+                # Only our persisted cancellation request explains an interrupt.
+                # An unsolicited interruption remains a failed Turn.
+                if not capture.completed.done():
+                    capture.completed.set_exception(asyncio.CancelledError())
             else:
                 capture.completed.set_exception(
                     GenerationRunError("CODEX_TURN_FAILED", "Codexによる調査が失敗しました。", True)
@@ -468,6 +483,8 @@ class GenerationRunner:
         inspection = self.inspections.get(job_id)
         capture = self.captures.get(inspection.thread_id) if inspection else None
         if capture and self.codex.connected:
+            if capture.terminal_status and not capture.approval_rejected:
+                return
             if not capture.turn_id:
                 await self.codex.discard_connection()
                 return

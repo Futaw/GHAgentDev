@@ -1,0 +1,276 @@
+{
+  "date": "2026-11-09",
+  "base_commit": "846f7c9c126226875922871e8b13eb0448ff4aff",
+  "phase_2_complete": false,
+  "generation_enabled": true,
+  "config_changed_by_agent": false,
+  "database_encoding": "UTF8",
+  "migration_head": "20261025_0002",
+  "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+  "normal_ui": {
+    "create": {
+      "id": "efa659bc-71c8-482d-bfdd-b5da211d7683",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+      "retry_of_job_id": null,
+      "operation": "create",
+      "status": "completed",
+      "current_phase": "completed",
+      "started_at": "2026-11-09T12:59:47.719691Z",
+      "completed_at": "2026-11-09T13:02:20.824665Z",
+      "error": null,
+      "created_at": "2026-11-09T12:59:47.671112Z",
+      "updated_at": "2026-11-09T13:02:20.824665Z",
+      "events_url": "/api/generation-jobs/efa659bc-71c8-482d-bfdd-b5da211d7683/events",
+      "saved_viewer": {
+        "id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+        "revision": 1,
+        "theme": "technical-light",
+        "density": "comfortable",
+        "commit": "846f7c9c126226875922871e8b13eb0448ff4aff",
+        "document_sha256": "6b987bacc09ee685a4312c54bdd4247639b04ce69651c9fdd4eb183c4894f83f",
+        "html_sha256": "5e71aa1004f265241e5de7f9a2de14f939bc74d351d7788f8cd2eb785ac648d3",
+        "source_reference_count": 23,
+        "section_count": 4,
+        "blocks": [
+          "bullet_list",
+          "callout",
+          "key_value",
+          "paragraph",
+          "steps",
+          "table"
+        ]
+      }
+    },
+    "cancel_before_fix": {
+      "id": "907fd7bd-c5ea-4a41-9acb-3a71833cbc0e",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+      "retry_of_job_id": null,
+      "operation": "regenerate",
+      "status": "failed",
+      "current_phase": "analyzing_repository",
+      "started_at": "2026-11-09T13:03:34.075671Z",
+      "completed_at": "2026-11-09T13:03:38.388139Z",
+      "error": {
+        "code": "CODEX_TURN_FAILED",
+        "message": "Codexによる調査が失敗しました。",
+        "retryable": true,
+        "trace_id": "907fd7bd-c5ea-4a41-9acb-3a71833cbc0e"
+      },
+      "created_at": "2026-11-09T13:03:34.051151Z",
+      "updated_at": "2026-11-09T13:03:38.388139Z",
+      "events_url": "/api/generation-jobs/907fd7bd-c5ea-4a41-9acb-3a71833cbc0e/events",
+      "saved_viewer": {
+        "id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+        "revision": 1,
+        "theme": "editorial",
+        "density": "compact",
+        "commit": "846f7c9c126226875922871e8b13eb0448ff4aff",
+        "document_sha256": "6b987bacc09ee685a4312c54bdd4247639b04ce69651c9fdd4eb183c4894f83f",
+        "html_sha256": "5e71aa1004f265241e5de7f9a2de14f939bc74d351d7788f8cd2eb785ac648d3",
+        "source_reference_count": 23,
+        "section_count": 4,
+        "blocks": [
+          "bullet_list",
+          "callout",
+          "key_value",
+          "paragraph",
+          "steps",
+          "table"
+        ]
+      }
+    },
+    "retry_regenerate": {
+      "id": "ae2eb1fa-01f4-4585-b3d8-caf5af3a759a",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+      "retry_of_job_id": "907fd7bd-c5ea-4a41-9acb-3a71833cbc0e",
+      "operation": "regenerate",
+      "status": "completed",
+      "current_phase": "completed",
+      "started_at": "2026-11-09T13:06:39.326588Z",
+      "completed_at": "2026-11-09T13:09:06.613700Z",
+      "error": null,
+      "created_at": "2026-11-09T13:06:39.301033Z",
+      "updated_at": "2026-11-09T13:09:06.613700Z",
+      "events_url": "/api/generation-jobs/ae2eb1fa-01f4-4585-b3d8-caf5af3a759a/events",
+      "saved_viewer": {
+        "id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+        "revision": 2,
+        "theme": "editorial",
+        "density": "compact",
+        "commit": "846f7c9c126226875922871e8b13eb0448ff4aff",
+        "document_sha256": "670db07bf537c83fd6d763585d666430ed55e47958522e62a3c09729a28036dd",
+        "html_sha256": "ba84c1c35713593ea737f738b9e57628de3cd3f93aec981267b9d706dddfcc28",
+        "source_reference_count": 29,
+        "section_count": 4,
+        "blocks": [
+          "bullet_list",
+          "key_value",
+          "paragraph",
+          "steps",
+          "table"
+        ]
+      }
+    },
+    "reload": "passed",
+    "source_popup": "passed",
+    "appearance_changed_without_regeneration": "passed",
+    "cancel_after_fix": "not_run_backend_restart_required"
+  },
+  "saved_integrity": {
+    "viewer_id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+    "revision": 2,
+    "source_reference_validation": "passed",
+    "sanitizer_idempotent": true,
+    "tracked_source_matches_commit": true,
+    "managed_git_status_clean": true,
+    "refs": [
+      "refs/repospec/viewers/87810752-10d6-4dc4-b96e-ea10b7d7f92b/revisions/2 846f7c9c126226875922871e8b13eb0448ff4aff"
+    ],
+    "active_job_count": 0
+  },
+  "real_isolated_cancellation": {
+    "evidence": "real_cli_isolated_postgresql_schema",
+    "normal_ui_retest": "not_run_after_backend_fix",
+    "status": "passed",
+    "pid": 45265,
+    "job_status": "cancelled",
+    "error_code": null,
+    "elapsed_after_cancel": 0.031,
+    "codex_connected_after_cancel": true,
+    "event_types": [
+      "job.started",
+      "job.phase.changed",
+      "job.cancelled"
+    ],
+    "viewer_count": 0,
+    "refs_remaining": "",
+    "source_unchanged": true,
+    "process_cleanup": "passed",
+    "schema_removed": true,
+    "fixture_removed": true
+  },
+  "deletion": {
+    "evidence": "real_api",
+    "ui_delete_dialog_cancel": "passed",
+    "ui_delete_confirm": "not_run",
+    "deleted_test_viewer": "b9b77b61-17a1-4b7d-9a5a-3353896b06ef",
+    "delete_status": 204,
+    "subsequent_get_status": 404,
+    "main_viewer_preserved": true
+  },
+  "synthetic_rendering": {
+    "evidence": "fixture_only_real_frontend_renderer_sanitizers",
+    "block_types": 12,
+    "blocks_including_wide_flow": 13,
+    "mobile": {
+      "pageWidth": 390,
+      "tables": [
+        897,
+        337,
+        561
+      ],
+      "types": [
+        "paragraph",
+        "bullet_list",
+        "key_value",
+        "table",
+        "code",
+        "callout",
+        "steps",
+        "flow",
+        "state_diagram",
+        "comparison",
+        "component_map",
+        "source_evidence"
+      ],
+      "width": 390
+    },
+    "desktop": {
+      "viewport_width": 1440,
+      "page_width": 1440,
+      "block_count": 13
+    },
+    "table_cell_minimum": "8em",
+    "db_or_codex_connected": false
+  },
+  "tests": {
+    "backend_passed": 188,
+    "frontend_passed": 33,
+    "ruff": "passed",
+    "ruff_format": "passed",
+    "eslint": "passed",
+    "typescript_vite_build": "passed"
+  },
+  "security": {
+    "evidence": "real_cli_full_harness_before_reenable_same_day",
+    "policy_version": "repospec-generation-v1.3-3",
+    "cli_version": "0.164.0",
+    "gates": {
+      "additional_permissions": {
+        "evidence": "real_turn",
+        "reason": "never_profile_unchanged_permission_tool_disabled",
+        "status": "passed"
+      },
+      "command_network": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "external_tools": {
+        "evidence": "real_turn",
+        "reason": "runtime_inventory_and_observed_items",
+        "status": "passed"
+      },
+      "fixture_integrity": {
+        "evidence": "real_cli",
+        "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+        "status": "passed"
+      },
+      "non_modification": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "protocol_config": {
+        "evidence": "real_cli",
+        "reason": "cwd_config_requirements_thread_runtime_checked",
+        "status": "passed"
+      },
+      "real_turn": {
+        "evidence": "real_turn",
+        "reason": "structured_output_and_command_item",
+        "status": "passed"
+      },
+      "sandbox_read": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "shell_environment": {
+        "evidence": "real_turn",
+        "reason": "fixed_path_and_runtime_environment_names_checked",
+        "status": "passed"
+      }
+    },
+    "process_cleanup": "passed",
+    "fixture_cleanup": "passed"
+  },
+  "remaining": [
+    "merge_fix_pr_and_restart_backend",
+    "normal_ui_cancel_and_retry_after_fix",
+    "normal_ui_delete_confirm_acceptance"
+  ],
+  "cleanup": {
+    "dedicated_recorded_processes_remaining": [],
+    "preview_server_stopped": true,
+    "dedicated_schema_removed": true,
+    "dedicated_fixture_removed": true,
+    "normal_backend_stopped_by_agent": false,
+    "normal_active_jobs": 0,
+    "main_viewer_preserved": true,
+    "generation_enabled_by_user": true
+  }
+}

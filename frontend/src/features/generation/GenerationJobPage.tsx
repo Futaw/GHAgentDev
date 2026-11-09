@@ -10,6 +10,11 @@ const labels: Record<string, string> = {
   analyzing_repository: 'Repositoryを調査', validating_document: '文書と参照を検証',
   rendering_html: 'HTMLを生成', sanitizing_html: 'HTMLをサニタイズ', saving_viewer: 'Viewerを保存', completed: '完了',
 }
+const titles: Record<string, string> = {
+  completed: 'Viewerの生成が完了しました',
+  failed: 'Viewerの生成に失敗しました',
+  cancelled: 'Viewerの生成を中止しました',
+}
 
 export function GenerationJobPage() {
   const { jobId = '' } = useParams()
@@ -52,7 +57,7 @@ export function GenerationJobPage() {
   const value = job.data
   const index = phases.indexOf(value.current_phase)
   return <main className="page-shell narrow-page">
-    <span className="eyebrow">GENERATION JOB</span><h1>Viewerを生成中</h1>
+    <span className="eyebrow">GENERATION JOB</span><h1>{titles[value.status] ?? 'Viewerを生成中'}</h1>
     <section className="panel generation-panel" aria-live="polite" aria-busy={['queued', 'running'].includes(value.status)}>
       <div className={`job-status job-status-${value.status}`}>{value.status}</div>
       {['queued', 'running'].includes(value.status) && <p className="muted">SSE: {connection === 'connected' ? '接続中' : '再接続中'}。RESTでも5秒ごとに状態を確認しています。</p>}
