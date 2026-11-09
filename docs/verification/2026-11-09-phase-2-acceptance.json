@@ -1,0 +1,204 @@
+{
+  "date": "2026-11-09",
+  "tested_commit": "1b934ab79428dbe2585a7223221e0938843b643c",
+  "phase_2_acceptance": "passed",
+  "phase_2_complete": true,
+  "scope": "local_single_user_public_repository_fixed_cli",
+  "cli_version": "codex-cli 0.164.0",
+  "policy_version": "repospec-generation-v1.3-3",
+  "backend_restarted_by_user": true,
+  "generation_enabled": true,
+  "configuration_changed_by_agent": false,
+  "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+  "ui": {
+    "create_job": {
+      "id": "96fd8795-a1cc-48fa-b822-a32687404d51",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": null,
+      "retry_of_job_id": null,
+      "operation": "create",
+      "status": "completed",
+      "current_phase": "completed",
+      "started_at": "2026-11-09T13:18:59.432240Z",
+      "completed_at": "2026-11-09T13:19:16.991152Z",
+      "error": null,
+      "created_at": "2026-11-09T13:18:59.401847Z",
+      "updated_at": "2026-11-09T13:19:16.991152Z",
+      "events_url": "/api/generation-jobs/96fd8795-a1cc-48fa-b822-a32687404d51/events"
+    },
+    "cancel_job": {
+      "id": "3a9d8ed2-9da8-4dd6-9862-d696cc3435e9",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": null,
+      "retry_of_job_id": null,
+      "operation": "regenerate",
+      "status": "cancelled",
+      "current_phase": "analyzing_repository",
+      "started_at": "2026-11-09T13:19:37.846773Z",
+      "completed_at": "2026-11-09T13:19:38.193931Z",
+      "error": null,
+      "created_at": "2026-11-09T13:19:37.819662Z",
+      "updated_at": "2026-11-09T13:19:38.193931Z",
+      "events_url": "/api/generation-jobs/3a9d8ed2-9da8-4dd6-9862-d696cc3435e9/events"
+    },
+    "cancel_details": {
+      "status": "cancelled",
+      "current_phase": "analyzing_repository",
+      "turn_started": true,
+      "cancel_requested": true,
+      "error_code": null
+    },
+    "retry_job": {
+      "id": "01eb4811-fa85-4a0e-91f9-e6e39e1b7e0d",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": null,
+      "retry_of_job_id": "3a9d8ed2-9da8-4dd6-9862-d696cc3435e9",
+      "operation": "regenerate",
+      "status": "completed",
+      "current_phase": "completed",
+      "started_at": "2026-11-09T13:19:59.846450Z",
+      "completed_at": "2026-11-09T13:20:20.709955Z",
+      "error": null,
+      "created_at": "2026-11-09T13:19:59.817990Z",
+      "updated_at": "2026-11-09T13:20:20.709955Z",
+      "events_url": "/api/generation-jobs/01eb4811-fa85-4a0e-91f9-e6e39e1b7e0d/events"
+    },
+    "retry_before_test_viewer_deletion": {
+      "id": "01eb4811-fa85-4a0e-91f9-e6e39e1b7e0d",
+      "repository_id": "2c1879c2-3ff4-48b3-841c-aa3e2ec551f6",
+      "viewer_id": "daf5e94c-3e8c-4c01-85a1-b2070e36676a",
+      "retry_of_job_id": "3a9d8ed2-9da8-4dd6-9862-d696cc3435e9",
+      "operation": "regenerate",
+      "status": "completed",
+      "current_phase": "completed",
+      "started_at": "2026-11-09T13:19:59.846450Z",
+      "completed_at": "2026-11-09T13:20:20.709955Z",
+      "error": null,
+      "created_at": "2026-11-09T13:19:59.817990Z",
+      "updated_at": "2026-11-09T13:20:20.709955Z",
+      "events_url": "/api/generation-jobs/01eb4811-fa85-4a0e-91f9-e6e39e1b7e0d/events",
+      "saved_viewer": {
+        "id": "daf5e94c-3e8c-4c01-85a1-b2070e36676a",
+        "revision": 2,
+        "theme": "technical-light",
+        "density": "comfortable",
+        "commit": "1b934ab79428dbe2585a7223221e0938843b643c",
+        "document_sha256": "f79d4700c174f5aee3e6916707adffa340c697beaf98cec9b9382a8c0b2ed18e",
+        "html_sha256": "cb260862798deec221766f892d2abe0a55583b402be7332249dfc4bcb4e1315b",
+        "source_reference_count": 1,
+        "section_count": 1,
+        "blocks": [
+          "paragraph"
+        ]
+      }
+    },
+    "delete": {
+      "viewer_id": "daf5e94c-3e8c-4c01-85a1-b2070e36676a",
+      "title": "最終確認用・削除予定",
+      "user_approved": true,
+      "confirmed_in_ui": true,
+      "dashboard_navigation": "passed",
+      "subsequent_get_status": 404,
+      "ref_removed": true
+    },
+    "first_cancel_attempt": "creation_finished_before_click_no_cancellation_claimed"
+  },
+  "integrity_and_cleanup": {
+    "generation_enabled": true,
+    "main_viewer_id": "87810752-10d6-4dc4-b96e-ea10b7d7f92b",
+    "main_viewer_revision": 2,
+    "main_document_hash_unchanged": true,
+    "main_html_hash_unchanged": true,
+    "main_source_references_valid": true,
+    "main_html_sanitizer_unchanged": true,
+    "managed_repository_head": "1b934ab79428dbe2585a7223221e0938843b643c",
+    "managed_repository_clean": true,
+    "refs": [
+      "refs/repospec/viewers/87810752-10d6-4dc4-b96e-ea10b7d7f92b/revisions/2 846f7c9c126226875922871e8b13eb0448ff4aff"
+    ],
+    "active_jobs": 0,
+    "viewer_count": 1,
+    "deleted_viewer_get_status": 404,
+    "health": {
+      "status": "ok",
+      "http_server": true,
+      "app_server_connected": true,
+      "app_server_error": null
+    },
+    "auth_status": "authenticated",
+    "harness_processes_remaining": []
+  },
+  "tests": {
+    "backend_passed": 188,
+    "frontend_passed": 33,
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "eslint": "passed",
+    "typescript_vite_build": "passed"
+  },
+  "safety": {
+    "full_run_exit_code": 0,
+    "gates": {
+      "additional_permissions": {
+        "evidence": "real_turn",
+        "reason": "never_profile_unchanged_permission_tool_disabled",
+        "status": "passed"
+      },
+      "command_network": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "external_tools": {
+        "evidence": "real_turn",
+        "reason": "runtime_inventory_and_observed_items",
+        "status": "passed"
+      },
+      "fixture_integrity": {
+        "evidence": "real_cli",
+        "reason": "all_protected_fixture_paths_and_git_metadata_hashed",
+        "status": "passed"
+      },
+      "non_modification": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "protocol_config": {
+        "evidence": "real_cli",
+        "reason": "cwd_config_requirements_thread_runtime_checked",
+        "status": "passed"
+      },
+      "real_turn": {
+        "evidence": "real_turn",
+        "reason": "structured_output_and_command_item",
+        "status": "passed"
+      },
+      "sandbox_read": {
+        "evidence": "real_cli",
+        "reason": "positive_control_and_os_denials",
+        "status": "passed"
+      },
+      "shell_environment": {
+        "evidence": "real_turn",
+        "reason": "fixed_path_and_runtime_environment_names_checked",
+        "status": "passed"
+      }
+    },
+    "process_cleanup": "passed",
+    "fixture_cleanup": "passed",
+    "real_approval_request": "not_observed"
+  },
+  "prior_evidence": [
+    "2026-11-05-generation-shell.md",
+    "2026-11-06-database-encoding.md",
+    "2026-11-09-viewer-ui-verification.md"
+  ],
+  "nonblocking_limits": [
+    "real_rpc_approval_request_not_observed_fake_rejection_tests_are_separate",
+    "sandbox_git_command_line_tools_path_not_investigated_backend_commit_blob_validation_passed",
+    "all_twelve_blocks_responsive_check_uses_synthetic_fixture",
+    "qa_and_source_code_viewer_are_phase_3",
+    "multiuser_remote_and_production_deployment_not_verified"
+  ]
+}
