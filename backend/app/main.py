@@ -39,7 +39,7 @@ from backend.app.generation.service import (
     ViewerDeleteError,
     ViewerNotFoundError,
 )
-from backend.app.generation.store import GenerationStore
+from backend.app.generation.store import GenerationDatabaseEncodingError, GenerationStore
 from backend.app.repositories import (
     DatabaseUnavailableError,
     RepositoryAlreadyRegisteredError,
@@ -163,6 +163,20 @@ def create_app(config: Settings | None = None, codex: CodexAppServer | None = No
             "Generation safety check failed",
             "Codexの安全設定を確認できないため、生成を開始しませんでした。",
             "CODEX_SANDBOX_UNSUPPORTED",
+            False,
+        )
+
+    @app.exception_handler(GenerationDatabaseEncodingError)
+    async def generation_database_encoding_handler(
+        request: Request, exc: GenerationDatabaseEncodingError
+    ) -> JSONResponse:
+        logger.warning("Generation database encoding unsupported trace_id=%s", _trace_id(request))
+        return _problem(
+            request,
+            503,
+            "Database encoding unsupported",
+            "Viewer生成にはUTF8のPostgreSQLデータベースが必要です。接続先を確認してください。",
+            "DATABASE_ENCODING_UNSUPPORTED",
             False,
         )
 
