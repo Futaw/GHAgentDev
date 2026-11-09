@@ -4,7 +4,7 @@ import asyncio
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -126,11 +126,28 @@ class StructuredCodex:
             asyncio.create_task(self._complete())
             return {"turn": {"id": "turn-generation", "status": "inProgress"}}
         if method == "turn/interrupt":
+            if self.fault == "cancel_wait":
+                await asyncio.gather(
+                    *(
+                        handler(
+                            "turn/completed",
+                            {
+                                "threadId": "thread-generation",
+                                "turn": {
+                                    "id": "turn-generation",
+                                    "status": "interrupted",
+                                    "items": [],
+                                },
+                            },
+                        )
+                        for handler in self.handlers
+                    )
+                )
             return {}
         return {}
 
     async def _complete(self) -> None:
-        if self.fault == "turn_deadline":
+        if self.fault in {"turn_deadline", "cancel_wait"}:
             return
         await asyncio.sleep(0)
         messages = [
@@ -461,6 +478,39 @@ async def test_generation_api_saves_only_validated_viewer(
             assert updated.json()["sanitized_html"] == before_html
             assert updated.json()["theme_slug"] == "editorial"
             assert updated.json()["content_revision"] == 1
+
+            codex.fault = "cancel_wait"
+            cancelled_regeneration = await client.post(
+                f"/api/viewers/{viewer_id}/regenerate",
+                headers={"Idempotency-Key": "regenerate-cancel"},
+            )
+            cancel_id = cancelled_regeneration.json()["id"]
+            for _ in range(100):
+                pending = await app.state.generation_store.get_job(UUID(cancel_id))
+                if pending.codex_turn_id:
+                    break
+                await asyncio.sleep(0.02)
+            assert pending.codex_turn_id
+            cancelled = await client.post(f"/api/generation-jobs/{cancel_id}/cancel")
+            assert cancelled.status_code in {200, 202}
+            await asyncio.gather(
+                *list(app.state.generation_service.runner.tasks.values()), return_exceptions=True
+            )
+            terminal = await client.get(f"/api/generation-jobs/{cancel_id}")
+            assert terminal.json()["status"] == "cancelled"
+            assert terminal.json()["error"] is None
+            events = await app.state.generation_service.runner.event_buffer(pending.id).wait_after(
+                0, 0
+            )
+            assert "job.cancelled" in [item.event_type for item in events]
+            assert "job.failed" not in [item.event_type for item in events]
+            assert codex.discard_count == 0
+            preserved = await client.get(f"/api/viewers/{viewer_id}")
+            assert preserved.json()["content_revision"] == 1
+            assert preserved.json()["sanitized_html"] == before_html
+            assert not await git(
+                repository, "for-each-ref", "--format=%(refname)", "refs/repospec/generation"
+            )
 
             codex.fault = "reject_permissions"
             regenerated = await client.post(

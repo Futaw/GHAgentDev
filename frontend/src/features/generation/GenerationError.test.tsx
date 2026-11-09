@@ -24,6 +24,20 @@ function mount(page: 'create' | 'job') {
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 it.each([
+  ['completed', 'Viewerの生成が完了しました'],
+  ['failed', 'Viewerの生成に失敗しました'],
+  ['cancelled', 'Viewerの生成を中止しました'],
+])('uses the terminal %s heading and hides the stop action', async (status, title) => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+    id: 'job', status, current_phase: 'analyzing_repository', viewer_id: null, error: null,
+  }), { status: 200 }))
+  mount('job')
+  expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Viewerを生成中' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '中止' })).not.toBeInTheDocument()
+})
+
+it.each([
   ['GENERATION_DISABLED', 'Viewer生成は現在無効です。安全性の事前確認が完了していません。'],
   ['CODEX_UNAVAILABLE', 'Codexに接続できません。接続状態を確認してから再試行してください。'],
   ['CODEX_SANDBOX_UNSUPPORTED', 'Codexの安全設定を確認できないため、生成を開始しませんでした。'],
