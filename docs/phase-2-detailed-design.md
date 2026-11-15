@@ -1518,6 +1518,8 @@ PR #24の生成・検証・保存パイプラインを維持し、次の安全�
 
 ## 23. Phase 3への引き継ぎ
 
+Phase 3の具体化は[Phase 3詳細設計](./phase-3-detailed-design.md)を参照する。同設計では版ごとのConversationへcontextをコピーし、Q&Aの調査先を固定Commitのsnapshotとする。また、再生成後も質問履歴のCommitを保持するConversation refを追加し、15.2のref回収・起動時reconcile・削除の対象を拡張する。これはPhase 3の計画であり、Phase 2完了時点の動作へ遡って適用しない。
+
 Phase 3は`Viewer.content_json`と`commit_sha`をQ&Aのcontextとして使用する。Source Code APIはViewer用Git refが保持するCommitからblobを取得し、working treeの現在値へ依存しない。
 
 Viewer document containerは、Phase 3でQ&A paneを追加してもrendererのHTMLを変更しない構造とする。source参照の`data-source-reference-id`も維持し、Phase 3でSource Code Viewerを開く操作へ接続する。

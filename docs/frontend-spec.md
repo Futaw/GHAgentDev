@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.8
-- 更新日: 2026-10-30
+- 文書バージョン: v0.9
+- 更新日: 2026-11-16
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -24,7 +24,7 @@
 | Routing | React Router |
 | Server state | TanStack Query |
 | Form | React Hook Form + Zodを第一候補 |
-| Code display | Monaco EditorまたはShiki系ビューア |
+| Code display | Phase 3はShikiのtokenをReact要素として描画 |
 | HTML sanitization | DOMPurifyを多層防御として使用 |
 | Test | Vitest, React Testing Library, Playwright |
 
@@ -273,11 +273,16 @@ Viewerのblock種類、配置規則、ThemeとDensityの責務は[Phase 2 詳細
 
 ### 7.1 Ask Codex
 
-- Viewerを開いた時に過去Messageを取得する
-- 質問はViewerとその生成元Commitに紐づける
+- Viewerを開いた時に現在版の履歴、旧版Conversation一覧、実行中Turnを取得する
+- 質問はViewer ID、content_revision、生成元Commitに紐づける
+- 再生成成功後は新しい版のConversationへ切り替え、旧版の履歴は閲覧のみとする
 - 回答本文とソース参照を別々の要素として表示する
+- 本文はplain textとして逐次表示し、参照はBackend検証後に確定する
+- 再読み込みやSSE再送不能時はRESTで履歴・実行状態を復元する
 - 回答中もViewer本文のスクロールと閲覧を妨げない
 - 新しいRepository Commitが存在する場合は、質問対象がViewer Commitであることを明示する
+
+Desktopは右ペイン、TabletはDrawer、Mobileは文書/質問タブを使う。入力にはPhase 0と同じIME送信抑止を適用する。詳細な幅、状態、Query key、API、SSE、中止・再試行は[Phase 3詳細設計](./phase-3-detailed-design.md)に定める。Phase 3の実装は未実施である。
 
 ### 7.2 Source Code Viewer
 
@@ -290,6 +295,8 @@ Viewerのblock種類、配置規則、ThemeとDensityの責務は[Phase 2 詳細
 - GitHub上の対応するCommit/行への導線
 
 パスに`..`や絶対パスを含む参照は表示要求を送信しない。最終的なパス検証はバックエンドが行う。
+
+Viewer本文の参照と旧版を含むQ&A参照に同じDialogを使う。BackendへViewerまたはConversationのcontextを渡し、その保持Commitのblobだけを取得する。Source表示にはShikiを遅延loadし、tokenからReact要素を組み立てる。未対応言語では行番号付きplain textを表示する。取得上限、行範囲、focus管理は[Phase 3詳細設計10・11章](./phase-3-detailed-design.md#10-source-code-api)に定める。
 
 ## 8. 状態管理
 

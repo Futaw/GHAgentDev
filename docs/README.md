@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.9
-- 更新日: 2026-11-09
+- 文書バージョン: v0.10
+- 更新日: 2026-11-16
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -107,6 +107,8 @@ Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。
 - 参照ファイル・行範囲の表示
 - Source Code Viewer
 
+[Phase 3詳細設計](./phase-3-detailed-design.md)を設計レビュー用として追加した。ConversationはViewerの版ごとに分離し、質問は生成元Commitの専用snapshotを対象とする。履歴、API、SSE、Source表示、再生成・削除との関係、実装分割と完了条件を定義した。Phase 3の実装と実Codex検証は未実施である。
+
 ### Phase 4: 品質と運用
 
 - 古いCommitから生成されたViewerの警告
@@ -177,6 +179,7 @@ Codexは任意のHTML、CSS、JavaScript、座標、class名を出力しない�
 - [Phase 1 詳細設計書](./phase-1-detailed-design.md)
 - [Phase 2 詳細設計書](./phase-2-detailed-design.md)
 - [Phase 2 詳細設計の引き継ぎ](./phase-2-design-handoff.md)
+- [Phase 3 詳細設計書](./phase-3-detailed-design.md)
 - [Phase 0・1 手動テストガイド](./phase-0-1-manual-test-guide.md)
 - [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
