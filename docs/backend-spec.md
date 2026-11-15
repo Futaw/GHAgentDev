@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.9
-- 更新日: 2026-11-06
+- 文書バージョン: v0.10
+- 更新日: 2026-11-16
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -377,40 +377,46 @@ blockは`paragraph`、`bullet_list`、`key_value`、`table`、`code`、`callout`
 ### 8.1 API
 
 ```http
+GET  /api/viewers/{viewer_id}/conversations
 GET  /api/viewers/{viewer_id}/messages
 POST /api/viewers/{viewer_id}/messages
+GET  /api/viewer-turns/{turn_id}
 GET  /api/viewer-turns/{turn_id}/events
 POST /api/viewer-turns/{turn_id}/cancel
+POST /api/viewer-turns/{turn_id}/retry
 ```
 
 ### 8.2 Conversation方針
 
-- Viewerごとに1つの既定Conversationを持つ
-- `Conversation.codex_thread_id`とApp Server Threadを対応づける
-- 質問時にViewer ID、生成条件、Commit SHA、Viewerの構造化内容をコンテキストとして使用する
-- `cwd`は対応するRepository Workspaceに限定する
+- Viewerの版ごとに1つのConversationを持ち、現在版だけに質問を送信できる
+- Conversationへ生成条件・Commit・構造化文書をコピーし、再生成後も旧版の履歴を保持する
+- Q&AのTurnごとに新しいephemeral Threadを作り、`ViewerTurn.codex_thread_id`へ対応づける
+- 過去の完了済み質問・回答を上限内でpromptへ入れ、Threadのresumeには依存しない
+- `cwd`は生成元CommitからBackendが作ったTurn専用の読み取り用snapshotに限定する
 - Repositoryの現在CommitがViewer Commitと違う場合は、回答対象Commitを明確にする
 - User/Assistant MessageはアプリDBに保存し、App Serverだけを履歴の正本にしない
 
-Q&A回答も、本文と`source_references`を分離した構造化出力とする。
+Q&A回答はplain textの本文、`source_references`、limitationsを分離した構造化出力とする。暫定本文だけを逐次配信し、検証成功時だけassistant MessageとTurn完了を同じtransactionで保存する。履歴を支えるConversation ref、API、DB制約、横断排他、安全設定と有効化条件は[Phase 3詳細設計](./phase-3-detailed-design.md)に定める。Phase 3の実装は未実施である。
 
 ## 9. Source Code API
 
 ```http
-GET /api/repositories/{repository_id}/source?path={relative_path}&commit={sha}&start={line}&end={line}
+GET /api/repositories/{repository_id}/source?viewer_id={uuid}&path={relative_path}&commit={sha}&start={line}&end={line}
+GET /api/repositories/{repository_id}/source?conversation_id={uuid}&path={relative_path}&commit={sha}&start={line}&end={line}
 ```
 
 必須検証:
 
 - `path`はRepository相対パスのみ
-- 正規化後パスがWorkspace rootの外に出ない
-- symlinkの解決先もWorkspace root内である
-- `commit`は対象Repositoryに存在するオブジェクトIDである
-- binary fileは拒否する
+- ViewerまたはConversationのcontextをちょうど1つ指定し、所属Repositoryと保持ref・DB・要求Commitの一致を確認する
+- pathをGit tree entryへ完全一致で対応づけ、ホストのworking tree pathとして開かない
+- 通常blobだけを扱い、symlinkとsubmoduleは拒否する
+- `commit`は対象contextが保持するfull SHAだけを許可する
+- binary、非UTF8、LFS pointerは拒否する
 - 1回の応答バイト数と行数に上限を設ける
 - 引数をshell文字列へ連結しない
 
-可能な限りworking treeの現在値ではなく、指定Commitのblobを読み取る。これによりViewer生成時点のソースを再現できる。
+常に指定Commitのblobを読み取り、working treeの現在値へfallbackしない。これによりViewer生成時点のソースを再現する。行番号の規則と上限、Git環境の隔離、Responseは[Phase 3詳細設計10章](./phase-3-detailed-design.md#10-source-code-api)に定める。
 
 ## 10. SSEイベント契約
 
@@ -475,18 +481,29 @@ error_code, error_message, error_retryable, created_at, updated_at
 ### Conversation
 
 ```text
-id, viewer_id nullable, kind, codex_thread_id,
-created_at, updated_at
+id, viewer_id, viewer_revision, commit_sha, context_json, context_hash,
+next_turn_number, created_at, updated_at
 ```
 
-`kind` is `smoke_chat | viewer_qa`.
+Viewerの版ごとのQ&A履歴を保持する。Phase 0 ChatはメモリSessionを維持し、このテーブルへ移行しない。
+
+### ViewerTurn
+
+```text
+id, repository_id, conversation_id, turn_number, assistant_message_id,
+status, current_phase, idempotency_key, request_hash, retry_of_turn_id,
+codex_thread_id, codex_turn_id, history_truncated_pairs, cancel_requested_at,
+started_at, completed_at, error_code, error_message, error_retryable,
+created_at, updated_at
+```
 
 ### Message
 
 ```text
-id, conversation_id, role, status, content,
-source_references_json, codex_turn_id, created_at, completed_at
+id, turn_id, role, content, answer_json, created_at
 ```
+
+userは受付時、assistantは回答検証成功時だけ保存する。失敗・中止の状態はViewerTurnで管理し、未確定deltaはDBへ保存しない。
 
 ### StreamEvent
 
@@ -496,6 +513,8 @@ payload_json, created_at, expires_at
 ```
 
 StreamEventは永久保存ではなく、SSE再接続用の短期保持とする。保持期間と上限件数は設定化する。
+
+上記のStreamEventテーブルは将来の永続イベント用の概略であり、Phase 3では作成しない。既存のメモリEventBufferとREST状態復元を使う。
 
 ## 12. エラー契約
 

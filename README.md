@@ -19,6 +19,8 @@ GitHub RepositoryのソースコードをCodex App Serverで調査し、読み�
 
 Viewerの生成・保存・再生成・中止・削除を実装し、ローカル環境でPhase 2の完了確認を行いました。[検証結果と対象範囲](docs/verification/2026-11-09-phase-2-acceptance.md)を参照してください。
 
+Phase 3のViewer内Q&AとSource Code Viewerは[詳細設計](docs/phase-3-detailed-design.md)を作成し、設計レビューの段階です。実装はまだ含みません。
+
 ## 必要な環境
 
 - Python 3.12以上
