@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.8
-- 更新日: 2026-10-30
+- 文書バージョン: v0.10
+- 更新日: 2026-11-16
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -24,7 +24,7 @@
 | Routing | React Router |
 | Server state | TanStack Query |
 | Form | React Hook Form + Zodを第一候補 |
-| Code display | Monaco EditorまたはShiki系ビューア |
+| Code display | Phase 3はShikiのtokenをReact要素として描画 |
 | HTML sanitization | DOMPurifyを多層防御として使用 |
 | Test | Vitest, React Testing Library, Playwright |
 
@@ -247,7 +247,7 @@ Phase 2のDesktop構成は次のとおり。
 +------------------+---------------------------------------------+
 ```
 
-Phase 3でAsk Codexを追加するときは、Desktopでは右ペイン、MobileではDrawerまたは別タブに切り替える。Viewer Headerにはタイトル、Repository、Branch、Commit SHA、文書種別、詳細度、対象読者、テーマ、表示密度、作成日時を表示する。
+Phase 3でAsk Codexを追加するときは、広い画面では右ペイン、狭い画面では文書/質問タブに切り替える。Viewer Headerにはタイトル、Repository、Branch、Commit SHA、文書種別、詳細度、対象読者、テーマ、表示密度、作成日時を表示する。
 
 blockの1列・2列表示はviewportではなくViewer本文containerの幅で切り替える。Phase 3で右ペインを追加して本文containerが狭くなった場合も、rendererのHTMLを変更せず1列表示へ切り替える。
 
@@ -273,11 +273,16 @@ Viewerのblock種類、配置規則、ThemeとDensityの責務は[Phase 2 詳細
 
 ### 7.1 Ask Codex
 
-- Viewerを開いた時に過去Messageを取得する
-- 質問はViewerとその生成元Commitに紐づける
+- Viewerを開いた時に現在版の履歴、旧版Conversation一覧、実行中Turnを取得する
+- 質問はViewer ID、content_revision、生成元Commitに紐づける
+- 再生成成功後は新しい版のConversationへ切り替え、旧版の履歴は閲覧のみとする
 - 回答本文とソース参照を別々の要素として表示する
+- 本文はplain textとして逐次表示し、参照はBackend検証後に確定する
+- 再読み込みやSSE再送不能時はRESTで履歴・実行状態を復元する
 - 回答中もViewer本文のスクロールと閲覧を妨げない
 - 新しいRepository Commitが存在する場合は、質問対象がViewer Commitであることを明示する
+
+幅1,280px以上は右ペイン、それ未満は文書/質問タブの2方式を使う。Tablet専用Drawerは追加しない。入力にはPhase 0と同じIME送信抑止を適用する。詳細な状態、Query key、API、SSE、中止・再試行は[Phase 3詳細設計](./phase-3-detailed-design.md)に定める。Phase 3の実装は未実施である。
 
 ### 7.2 Source Code Viewer
 
@@ -289,7 +294,9 @@ Viewerのblock種類、配置規則、ThemeとDensityの責務は[Phase 2 詳細
 - 指定行への自動スクロール
 - GitHub上の対応するCommit/行への導線
 
-パスに`..`や絶対パスを含む参照は表示要求を送信しない。最終的なパス検証はバックエンドが行う。
+表示要求には保存済みの参照IDを使い、任意のCommit・path・行範囲を送信しない。参照元のデータに`..`や絶対pathがあれば要求を送信せず、Backendでも保存済み参照のpathを検証する。
+
+Viewer本文の参照と旧版を含むQ&A参照に同じDialogを使う。Viewer ID・expected revision、または確定assistant Message IDと参照IDを渡し、その保持Commitのblobだけを取得する。前後contextとEOF調整はBackendで行い、初回は1応答で表示する。長い参照だけpageを切り替える。回答中も保存済み参照を開ける。Source表示にはShikiを遅延loadし、tokenからReact要素を組み立てる。未対応言語では行番号付きplain textを表示する。取得上限、行範囲、focus管理は[Phase 3詳細設計10・11章](./phase-3-detailed-design.md#10-source-code-api)に定める。
 
 ## 8. 状態管理
 
@@ -307,7 +314,7 @@ Phase 0 ChatのSession作成POSTは、自動再試行するMutationとして管�
 ### 8.2 ローカルUI state
 
 - Form入力中の値
-- Drawer/Dialogの開閉
+- Q&Aタブ選択、ペインの折りたたみ、Dialogの開閉
 - Viewerの目次選択
 - Source Code Viewerの選択範囲
 - ストリーミング中の未確定テキスト

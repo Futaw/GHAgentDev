@@ -1269,7 +1269,7 @@ Viewer Headerにはタイトル、Repository、Branch、Commit SHA、Document Ty
 
 目次はSectionからReactが生成する。文書内blockの種類や順序はViewerごとに変わる。完成時の画面モックにあるフロー中心の本文は表示例であり、全Viewer共通の固定構成ではない。
 
-Phase 2ではQ&A paneを表示しない。Phase 3でDesktopの右paneまたはMobileのDrawerを追加できるよう、Viewer shellとdocument containerを分離する。document containerへ`container-type: inline-size`を設定し、Q&A paneの追加で本文幅が狭くなった場合もrendererのHTMLを変更せず1列表示へ切り替える。
+Phase 2ではQ&A paneを表示しない。Viewer shellとdocument containerを分離し、Phase 3では右paneまたは文書/質問タブを接続する。document containerへ`container-type: inline-size`を設定し、Q&A paneの追加で本文幅が狭くなった場合もrendererのHTMLを変更せず1列表示へ切り替える。
 
 主要操作は次のとおりとする。
 
@@ -1517,6 +1517,8 @@ PR #24の生成・検証・保存パイプラインを維持し、次の安全�
 15. 14.6の全必須gateが合格し、21.3の手動確認を完了している。未実行・判定不能を完了へ含めない。
 
 ## 23. Phase 3への引き継ぎ
+
+Phase 3の具体化は[Phase 3詳細設計v1.1](./phase-3-detailed-design.md)を参照する。同設計では版ごとのConversationへcontextをコピーし、Q&Aの調査先を固定Commitのsnapshotとする。履歴が参照する既存のViewer revision refを保持し、15.2の旧ref削除条件と起動時reconcileの保持対象を拡張する。Conversation専用refは作らない。Source APIは保存済み参照IDから取得し、Viewer所有のQ&A履歴はDB cascade削除とする。これらはPhase 3の計画であり、Phase 2完了時点の動作へ遡って適用しない。
 
 Phase 3は`Viewer.content_json`と`commit_sha`をQ&Aのcontextとして使用する。Source Code APIはViewer用Git refが保持するCommitからblobを取得し、working treeの現在値へ依存しない。
 
