@@ -87,3 +87,4 @@ BackendテストはSQLiteとローカルbare Git Repositoryをtest seamとして
 - [Phase 0 Chat進捗・画面移動対応 詳細設計書](./docs/phase-0-chat-recovery-detailed-design.md)
 - [Phase 1 詳細設計書](./docs/phase-1-detailed-design.md)
 - [Phase 0・1 手動テストガイド](./docs/phase-0-1-manual-test-guide.md)
+- [Phase 2 手動テストガイド](./docs/phase-2-manual-test-guide.md)
