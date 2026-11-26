@@ -1,7 +1,7 @@
 # RepoSpec Viewer フロントエンド仕様
 
-- 文書バージョン: v0.10
-- 更新日: 2026-11-16
+- 文書バージョン: v0.11
+- 更新日: 2026-11-27
 - 対象: React + TypeScript + Vite
 - ステータス: 概要設計
 
@@ -342,6 +342,7 @@ SSEで受信したデルタはキャッシュに直接混ぜず、ストリー�
 | SSE切断 | 自動再接続中と表示し、失敗時はJob/Turn状態をRESTで再取得 |
 | Generation受付失敗 | 生成無効・Codex未接続・安全設定確認失敗をcodeとtrace IDで区別し、入力を保持 |
 | Generation失敗 | `error_retryable=true`の場合だけ保存済み条件での再試行を提供 |
+| Codexの送信Schema拒否 | `CODEX_OUTPUT_SCHEMA_INVALID`とtrace ID、アプリ修正が必要な説明を表示。同条件再試行は提示しない |
 | 削除失敗 | Viewerを一覧から消さずエラーを表示 |
 | Repository削除失敗 | Dashboardを維持し、GitHub上のRepositoryは変更されていないことを伝えて再試行を案内 |
 

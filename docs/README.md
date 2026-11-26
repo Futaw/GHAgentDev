@@ -1,7 +1,7 @@
 # RepoSpec Viewer 概要仕様
 
-- 文書バージョン: v0.11
-- 更新日: 2026-11-16
+- 文書バージョン: v0.12
+- 更新日: 2026-11-27
 - ステータス: 初期設計
 
 本文書は、システム境界、主要責務、実装順序を確定するための大枠仕様である。画面の視覚デザイン、全APIの厳密なDTO、DBのDDL、Codexへ渡す完成プロンプトは、対応フェーズの開始時に詳細化する。
@@ -99,6 +99,8 @@ Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。
 
 その後、PR #32マージ・通常Backend再起動後に、中止のcancelled表示、同条件再試行による保存、試験用Viewerの画面からの削除とDashboard復帰を確認した。回帰テストと実CLIの必須9gateも合格し、ローカル・単一ユーザー・Public Repository・固定CLIの対象範囲でPhase 2を完了した。[最終受入記録](./verification/2026-11-09-phase-2-acceptance.md)に、証拠種別とPhase 3以降の課題を記載する。
 
+2026-11-27には、実生成で送信用Schemaの`oneOf`が拒否される問題を修正した。送信時にだけ`anyOf`を使い、受信後の検証は維持する。Schema拒否は専用の非再試行エラーとして表示・記録する。隔離PostgreSQLでの実生成・保存と安全性9gateを確認し、通常画面への適用後確認は分けて扱う。[修正と検証の記録](./verification/2026-11-27-output-schema.md)を参照する。
+
 ### Phase 3: Viewer内Q&A
 
 - Viewer右ペインでの質問
@@ -107,7 +109,7 @@ Phase 2の生成・検証・保存はPR #24でmainへマージ済みである。
 - 参照ファイル・行範囲の表示
 - Source Code Viewer
 
-[Phase 3詳細設計v1.1](./phase-3-detailed-design.md)を設計レビュー用として追加した。ConversationはViewerの版ごとに分離し、質問は生成元Commitの専用snapshotを対象とする。履歴が参照する既存の版別refを保持し、Source表示は保存済み参照IDから取得する。右ペイン/タブの2方式とDB cascade削除で構成を簡素化した。履歴、API、SSE、再生成・削除との関係、先行検証・実装順序と完了条件を定義した。Phase 3の実装と実Codex検証は未実施である。
+[Phase 3詳細設計v1.2](./phase-3-detailed-design.md)に、版別Conversation、固定Commitのsnapshot、参照IDによるSource取得、右ペイン/タブの2方式とDB cascade削除を定義した。Phase 2の送信用Schema修正に伴い、共通のSchema生成と拒否時の失敗分類を追記した。データモデルや画面構成への変更はない。Phase 3の実装と実Codex検証は未実施である。
 
 ### Phase 4: 品質と運用
 

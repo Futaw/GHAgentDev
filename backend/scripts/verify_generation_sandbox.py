@@ -716,6 +716,13 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
                 if not codex.connected:
                     raise RuntimeError("connection_failed")
                 await codex.ensure_generation_contract()
+                # account/read can emit account/updated and expire inspections.
+                # Read auth before taking the Thread's safety epoch snapshot.
+                account = (
+                    await codex.request("account/read", {"refreshToken": False})
+                    if scope == "full"
+                    else None
+                )
                 inspection = GenerationPreflight(codex, uuid4(), repository)
                 await inspection.start_thread()
                 report["gates"]["protocol_config"] = outcome(
@@ -723,7 +730,6 @@ async def _verify(arguments: argparse.Namespace, report: dict) -> dict:
                 )
                 progress(current_check, "complete")
                 if scope == "full":
-                    account = await codex.request("account/read", {"refreshToken": False})
                     if not account.get("account") and account.get("requiresOpenaiAuth", True):
                         report["gates"]["real_turn"] = outcome(
                             "inconclusive", "authentication_unavailable", "real_turn"

@@ -1,13 +1,17 @@
 # RepoSpec Viewer Phase 2 詳細設計書
 
-- 文書バージョン: v1.3
-- 更新日: 2026-11-09
-- ステータス: ローカル・単一ユーザー・固定CLIでの受入確認完了
+- 文書バージョン: v1.4
+- 更新日: 2026-11-27
+- ステータス: 2026-11-09の受入記録を維持。送信用Schemaの互換性修正を追加
 - 対象Phase: Phase 2「Viewer生成と保存」
 
 本文書は、[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)をPhase 2の実装へ落とし込む詳細設計書である。上位仕様と本文書が矛盾する場合は、Phase 2の範囲に限り本文書を優先する。
 
 Phase 2では、Viewer全体を1つの固定テンプレートへ当てはめない。Codexが生成する構造化データと、アプリが管理する表示部品を組み合わせ、内容に応じて構成を変えられるViewerを実装する。
+
+v1.4では、実生成で観測した`invalid_json_schema`を受け、Codexへ送るSchemaとアプリ側の検証を分離した。blockや保存JSONの形式は変えず、送信用のtagged unionを`anyOf`で表す。過去の受入記録は当時の結果として残し、今回の修正確認と区別する。
+
+実Codex・隔離PostgreSQL・安全性回帰の結果と、通常画面への適用条件は[今回の検証記録](./verification/2026-11-27-output-schema.md)に記載する。
 
 ## 1. 目的とスコープ
 
@@ -460,6 +464,16 @@ nodeの`id`は共通Block IDと同じ形式、`label`は1〜120文字、`descrip
 Codex App Serverの`outputSchema`には、型、必須field、enum、`additionalProperties: false`を含むschemaを渡す。model側のStructured Outputsで扱えない可能性がある文字数、配列件数、正規表現、相互参照はPydanticとSource validatorで検証する。
 
 Schema検証に失敗しても、Codex出力を緩い形へ自動変換しない。Phase 2では同じJob内の自動再生成を1回だけ許可し、検証エラーの項目名だけを修正指示として渡す。2回目も失敗した場合は`DOCUMENT_SCHEMA_INVALID`でJobを失敗させる。
+
+### 7.8 Codexへ送るSchema
+
+`backend/app/codex/output_schema.py`の`codex_output_schema`で送信用Schemaを生成する。Pydanticのdiscriminated unionから通常生成される`oneOf`とOpenAPIの`discriminator`はそのまま送らない。Pydanticのtagged union生成箇所だけを`anyOf`へ変え、`discriminator`を除く。任意のSchemaの`oneOf`を一律に置換しない。
+
+12種のblockは、必須の`type`がそれぞれ異なるLiteralであるため、分岐が重ならない。この条件では`anyOf`と`oneOf`が受け付ける値は同じになる。各分岐の`type`制約、必須field、`additionalProperties:false`、`$defs/$ref`、文字数等の制約は保持する。rootはobjectとし、通常のnullable fieldの`anyOf`も保持する。
+
+受信後は既存の`ViewerDocument`とdiscriminated unionで検証する。未知block、追加field、件数・文字数、図の構造、相互参照、Git blobと行範囲の検証を省略しない。保存JSON、HTML、renderer version、content_revisionの形式、DB定義は変えない。
+
+モデルが返したJSONの不正と、モデル開始時の送信用Schema拒否を区別する。後者は`CODEX_OUTPUT_SCHEMA_INVALID / retryable:false`で停止し、同じJobの修正Turnや自動再試行を行わない。前者の1回だけの修正Turnにも、同じ送信用Schema生成を使う。[Structured Outputsの対応Schema](https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas)を参照する。
 
 ## 8. HTML renderer
 
@@ -1170,6 +1184,8 @@ Generation serviceは接続世代・`codex_thread_id`・`codex_turn_id`で通知
 
 `turn/completed.status=completed`、安全設定検査合格、拒否/違反なしをすべて満たした出力だけを7章以降の検証へ渡す。`outputSchema`があってもPydantic、SourceReference、renderer、二段階sanitizerを省略しない。
 
+失敗Turnの`error.message`が`invalid_json_schema`または`Invalid schema for response_format`と識別できる場合は、共通の`codex/errors.py`で`invalid_output_schema`へ分類する。DB・REST・SSE・UIへ返すのは固定のアプリerror codeと説明だけとし、元のmessage、additionalDetails、prompt、Schema全文は保存・公開・通常ログ出力しない。ログにはJob/trace/Thread/Turn ID、終端status、安全な分類を記録する。識別できない失敗は従来の`CODEX_TURN_FAILED / retryable:true`を維持する。
+
 ## 15. SourceReferenceとGit ref
 
 ### 15.1 Commit単位の検証
@@ -1353,6 +1369,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 | `OPERATION_INTERRUPTED` | process再起動 | Yes |
 | `CODEX_SANDBOX_UNSUPPORTED` | 制限付きread-onlyを利用できない | No |
 | `CODEX_TURN_FAILED` | Turn失敗 | Yes |
+| `CODEX_OUTPUT_SCHEMA_INVALID` | Codexが送信用Schemaを拒否。アプリ修正が必要 | No |
 | `CODEX_TIMEOUT` | Generation timeout | Yes |
 | `CODEX_USAGE_LIMIT` | 利用上限 | Yes |
 | `DOCUMENT_SCHEMA_INVALID` | JSON schema不一致 | Yes |
@@ -1387,6 +1404,9 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 ### 20.1 Backend Unit
 
 - 全block typeの正常系と必須field不足
+- 実送信用Schemaの全階層に`oneOf/discriminator`がなく、12種の相異なる必須type、全field必須、追加field拒否、root object、既存の制約を保持すること
+- 送信用Schema生成が通常のPydantic検証Schemaを変更しないこと
+- `invalid_json_schema`の安全な分類と、未知・欠落したerrorの一般失敗への対応
 - 未知のblock typeと追加fieldの拒否
 - Section、block、node、SourceReference IDの重複
 - 壊れたedge、table column、source参照ID
@@ -1409,6 +1429,8 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 - Alembic migrationとViewer/Job CRUD
 - Repositoryごとのactive Job一意制約
 - fake app-serverの`outputSchema`付きTurn完了
+- Fakeも送信Schemaの互換条件を検査し、旧`oneOf`Schemaを成功扱いしないこと
+- 送信用Schema拒否は非retryableでViewer/refを保存せず、一般Turn失敗はretryableのまま。生エラー・秘密値をREST/SSE/ログへ出さないこと
 - fake app-serverでの起動override、対象cwd付き設定取得、Thread config・Profile/root・feature/MCP全page照合、追加権限要求拒否
 - 設定変更、Thread応答欠落、Plugin inventoryに頼らないfail closed、再接続後の検査失効
 - request timeoutとJob timeoutの分類、interrupt失敗時のprocess終了、古い応答の無視
@@ -1438,6 +1460,7 @@ Generation Jobが`queued`の間もactiveとして扱う。Syncはactive Jobが�
 - 表示設定、再生成、削除dialog
 - API失敗後の画面維持と再試行
 - `GENERATION_DISABLED / CODEX_UNAVAILABLE / CODEX_SANDBOX_UNSUPPORTED`の表示、trace ID、入力保持、POST自動再試行抑止
+- `CODEX_OUTPUT_SCHEMA_INVALID`の説明・trace ID表示と、同条件再試行ボタンを非表示にすること
 
 ### 20.4 E2Eと視覚確認
 
@@ -1518,9 +1541,11 @@ PR #24の生成・検証・保存パイプラインを維持し、次の安全�
 
 ## 23. Phase 3への引き継ぎ
 
-Phase 3の具体化は[Phase 3詳細設計v1.1](./phase-3-detailed-design.md)を参照する。同設計では版ごとのConversationへcontextをコピーし、Q&Aの調査先を固定Commitのsnapshotとする。履歴が参照する既存のViewer revision refを保持し、15.2の旧ref削除条件と起動時reconcileの保持対象を拡張する。Conversation専用refは作らない。Source APIは保存済み参照IDから取得し、Viewer所有のQ&A履歴はDB cascade削除とする。これらはPhase 3の計画であり、Phase 2完了時点の動作へ遡って適用しない。
+Phase 3の具体化は[Phase 3詳細設計v1.2](./phase-3-detailed-design.md)を参照する。同設計では版ごとのConversationへcontextをコピーし、Q&Aの調査先を固定Commitのsnapshotとする。履歴が参照する既存のViewer revision refを保持し、15.2の旧ref削除条件と起動時reconcileの保持対象を拡張する。Conversation専用refは作らない。Source APIは保存済み参照IDから取得し、Viewer所有のQ&A履歴はDB cascade削除とする。これらはPhase 3の計画であり、Phase 2完了時点の動作へ遡って適用しない。
 
 Phase 3は`Viewer.content_json`と`commit_sha`をQ&Aのcontextとして使用する。Source Code APIはViewer用Git refが保持するCommitからblobを取得し、working treeの現在値へ依存しない。
+
+Phase 3のQaAnswerも共通の`codex_output_schema`と送信用Schema拒否の分類を利用する。保存済みViewerの再生成やDB移行は不要であり、版別Conversation、固定Commit、snapshot、Source API、UI構成は今回の修正で変えない。Phase 3の実SchemaがAPIに受理されることと、回答の途中抽出が成立することはP3-00以降で別に検証する。
 
 Viewer document containerは、Phase 3でQ&A paneを追加してもrendererのHTMLを変更しない構造とする。source参照の`data-source-reference-id`も維持し、Phase 3でSource Code Viewerを開く操作へ接続する。
 

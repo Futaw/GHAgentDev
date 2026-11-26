@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from backend.app.codex import CodexAppServer, CodexConnectionError, CodexTimeoutError
 from backend.app.codex.client import rpc_trace_id
+from backend.app.codex.errors import classify_turn_error
 from backend.app.events import EventBuffer
 from backend.app.generation.models import GenerationJobModel, GenerationStatus, ViewerModel
 from backend.app.generation.prompt import build_generation_prompt, build_schema_repair_prompt
@@ -475,9 +476,29 @@ class GenerationRunner:
                 if not capture.completed.done():
                     capture.completed.set_exception(asyncio.CancelledError())
             else:
-                capture.completed.set_exception(
-                    GenerationRunError("CODEX_TURN_FAILED", "Codexによる調査が失敗しました。", True)
+                classification = classify_turn_error(params.get("turn", {}).get("error"))
+                LOGGER.warning(
+                    "Generation turn failed job_id=%s trace_id=%s thread_id=%s turn_id=%s "
+                    "status=%s classification=%s",
+                    capture.job_id,
+                    capture.job_id,
+                    capture.thread_id,
+                    capture.turn_id,
+                    capture.terminal_status or "unexpected_status",
+                    classification,
                 )
+                failure = (
+                    GenerationRunError(
+                        "CODEX_OUTPUT_SCHEMA_INVALID",
+                        "アプリの出力形式に問題があります。修正後に新しく生成してください。",
+                        False,
+                    )
+                    if classification == "invalid_output_schema"
+                    else GenerationRunError(
+                        "CODEX_TURN_FAILED", "Codexによる調査が失敗しました。", True
+                    )
+                )
+                capture.completed.set_exception(failure)
 
     async def _stop_job(self, job_id: UUID) -> None:
         inspection = self.inspections.get(job_id)

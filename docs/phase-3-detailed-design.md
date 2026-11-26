@@ -1,13 +1,15 @@
 # Phase 3 詳細設計書: Viewer内Q&AとSource Code Viewer
 
-- 文書バージョン: v1.1
-- 更新日: 2026-11-16
-- ステータス: 設計レビュー用。Phase 3の実装・実Codex検証は未実施
+- 文書バージョン: v1.2
+- 更新日: 2026-11-27
+- ステータス: 設計済み。Phase 3の実装・実Codex検証は未実施
 - 実装基準: Phase 2完了記録を含むmain `ae4102b`
 
 本文書は、Viewerを読みながら追加質問し、回答の根拠を生成元Commitのソースで確認するための契約を定める。[概要仕様](./README.md)、[フロントエンド仕様](./frontend-spec.md)、[バックエンド仕様](./backend-spec.md)のPhase 3を具体化する。Phase 0 Chatは既存の一時Sessionのまま維持する。
 
 v1.1では、既存のViewer版別refの再利用、参照IDによるSource取得、短いGit保護用lock、右ペイン/タブの2方式、履歴のDB cascade削除へ簡素化した。固定Commit、安全設定、版別履歴、二重送信防止と中止の要件は維持する。
+
+v1.2では、Phase 2で判明した送信用Schemaの互換性とエラー分類を引き継ぐ。共通の送信用Schema生成とSchema拒否の非再試行分類を利用する。データモデル、版別履歴、snapshot、Source API、画面構成と実装順序は変更しない。
 
 ## 1. 目的と範囲
 
@@ -209,7 +211,9 @@ Repositoryの実装について回答する場合は最低1参照を要求する
 
 ### 7.2 JSONの途中出力
 
-`turn/start`には毎回QaAnswerの`outputSchema`を渡す。raw JSON deltaをSSEへ転送しない。許可したagentMessage Item単位でbufferを分離し、root objectの`body`文字列だけをincremental JSON decoderで取り出す。key順を前提にせず、escape、引用符、分割Unicode escape、surrogate pair、UTF8境界に対応する。正規表現による切出し、JSON全体の表示、他fieldへのfallbackは禁止する。
+`turn/start`には毎回QaAnswerの`outputSchema`を渡す。SchemaはPhase 2と共通の`backend/app/codex/output_schema.py`で生成し、Pydanticの通常の`model_json_schema()`を直接渡さない。root object、全field必須、追加field拒否を維持し、tagged unionを追加する場合も送信用には`anyOf`を用いる。受信後のstrict Pydantic検証と組合せ条件の検証は維持する。これは送信形式の共通化であり、回答や保存JSONの形式変更ではない。
+
+raw JSON deltaをSSEへ転送しない。許可したagentMessage Item単位でbufferを分離し、root objectの`body`文字列だけをincremental JSON decoderで取り出す。key順を前提にせず、escape、引用符、分割Unicode escape、surrogate pair、UTF8境界に対応する。正規表現による切出し、JSON全体の表示、他fieldへのfallbackは禁止する。
 
 decoderの実装方法はP3-00の小さなfixtureで先に検証する。既存parserの再利用を優先し、要件を満たす方法を選んでから本体へ組み込む。独自の汎用JSON parserを新設することを実装前提にしない。
 
@@ -407,6 +411,8 @@ SSE完了と5秒pollingのどちらで終端を知っても同じ確定処理を
 
 受付後の失敗は`QA_INTERRUPTED / CODEX_UNAVAILABLE / CODEX_TIMEOUT / CODEX_TURN_FAILED / QA_ANSWER_INVALID / SOURCE_REFERENCE_INVALID / QA_FAILED`をretryable true、`CODEX_SANDBOX_UNSUPPORTED / QA_SNAPSHOT_UNSUPPORTED / QA_CONTEXT_TOO_LARGE / DATABASE_ENCODING_UNSUPPORTED`をfalseとする。snapshot容量超過は`QA_SNAPSHOT_TOO_LARGE / retryable:false`とする。利用上限が識別できる通知は既存error mappingとそろえ、一般接続失敗に潰さない。
 
+Codexが送信用QaAnswer Schemaを拒否した場合は、Phase 2と同じ`CODEX_OUTPUT_SCHEMA_INVALID / retryable:false`とする。`QA_ANSWER_INVALID`は受信した回答の検証失敗であり、送信用Schema拒否とは区別する。`codex/errors.py`の安全な分類を共用し、元のerror messageやadditionalDetailsをDB、SSE、画面、通常ログへ出さない。Turn/trace/Thread IDと安全な分類で照合できるようにする。Schema拒否時は確定assistantを保存せず、暫定bodyを除去し、同条件再試行を案内しない。
+
 | 設定 | 既定値 | 用途 |
 |---|---|---|
 | QA_ENABLED | false | 新規質問・再試行だけを制御。履歴/Sourceは独立 |
@@ -425,7 +431,7 @@ blob上限は既存`viewer_source_max_file_bytes`（2MiB）を共用する。正
 
 | 順序 | 主な対象 | 完了する契約 |
 |---|---|---|
-| P3-00 小さな方式検証 | 使い捨てGit fixture、分割JSON fixture、固定CLIの通知記録 | snapshot作成と既存parser再利用の成立を確認し、実装方法を決める。通常データは使わず、snapshotのcacheを追加しない |
+| P3-00 小さな方式検証 | 使い捨てGit fixture、分割JSON fixture、固定CLIの通知記録 | snapshot作成、共通生成したQaAnswer Schemaの実API受理、既存parser再利用の成立を確認し、実装方法を決める。通常データは使わず、snapshotのcacheを追加しない |
 | P3-01 永続化と受付 | `backend/app/conversations/{models,store,service}.py`、API schemas/routes、Alembic | revision別context、Message/Turn、pagination、idempotency、cancel/retry、起動回復。QAは無効のまま |
 | P3-02 Commit保持とSource | `backend/app/sources/{service,snapshot}.py`、既存Git helper/source validator/ref/reconcile、Repository/Generation service | 版別ref再利用、cascade削除/復旧、処理排他と短いGit保護、参照ID API、bounded blob、固定Commit snapshot |
 | P3-03 CodexとSSE | `backend/app/conversations/{runner,answer,prompt}.py`、共通preflight、EventBuffer | QaAnswer、decoder、安全な通知分類、停止確認、保存CAS、共通concurrency |
@@ -447,6 +453,7 @@ P3-00で実装方法を確認してから本体へ進む。後続は最新main�
 | snapshot | 元byte/hash一致、100755の非実行化、symlink/gitlink/LFS除外、path escape/case/Unicode衝突停止、巨大tree/blob・timeout停止、finally cleanupと起動時残留回収 |
 | Source | 未登録参照ID/user Message/任意commit・path query拒否、再生成前の同参照IDは409、別Messageの同参照IDを分離、内部の相対脱出拒否・percent文字を再decodeしないこと、UTF8日本語、LF/CRLF/空blob/Unicode改行、EOF付近のcontextを1応答、500行page・2MiB・256KiB境界、binary/非UTF8拒否 |
 | 出力 | JSONを1文字ずつ分割、escape/日本語/surrogate/key順/重複key/複数Item、source参照不正、schema上限、本文とrefsの分離、HTML/scriptをtext表示 |
+| 送信Schema | 共通生成、root object、全field必須、追加field拒否、`oneOf/discriminator`の除外、実QaAnswer SchemaのAPI受理。拒否時は非retryable・非保存・暫定body除去とし、生エラーを公開しない |
 | SSE | 応答前通知、重複/他Turn/古い接続世代、buffer欠落/reset、cursor前後不正、再接続、terminal event消失、reload/Route往復、REST完了とSSE完了の競合 |
 | UI | 日本語IME、入力保持/再送key保持、queued/無効/旧版/失敗、Source連打応答逆転、キーボード/Dialog focus、未知言語fallback、1,280px境界の右ペイン/タブ切替、Mobileの横幅 |
 | 回帰 | Phase 0認証/Chat/中止、Phase 1 Clone/Sync/削除、Phase 2生成/再生成/Theme/Density/中止/Viewer削除、既存sanitizerとrenderer |
