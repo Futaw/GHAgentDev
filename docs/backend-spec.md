@@ -1,7 +1,7 @@
 # RepoSpec Viewer バックエンド仕様
 
-- 文書バージョン: v0.11
-- 更新日: 2026-11-16
+- 文書バージョン: v0.12
+- 更新日: 2026-11-27
 - 対象: Python + FastAPI + PostgreSQL + Codex App Server
 - ステータス: 概要設計
 
@@ -360,6 +360,8 @@ ThemeとDensityはCodex入力に混ぜない。見た目はrendererとアプリ�
 
 blockは`paragraph`、`bullet_list`、`key_value`、`table`、`code`、`callout`、`steps`、`flow`、`state_diagram`、`comparison`、`component_map`、`source_evidence`を初期catalogとする。セクション名とblock順は内容に応じて変え、空または無関係なセクションを固定表示しない。
 
+Codexへの送信用Schemaは共通の`codex/output_schema.py`で生成する。Pydanticのtagged unionは送信用にだけ`anyOf`へ変換し、`discriminator`を除く。各blockの相異なる必須type、追加field拒否、受信後の厳密な検証を維持する。モデル開始時のSchema拒否は`CODEX_OUTPUT_SCHEMA_INVALID / retryable:false`、生成文書の検証失敗は`DOCUMENT_SCHEMA_INVALID`として区別する。生エラーを出さず、固定分類とtrace IDを記録する。
+
 ### 7.5 HTML renderer
 
 - 入力はvalidation済みViewerDocumentのみ
@@ -539,6 +541,7 @@ REST errorはRFC 9457 Problem Details相当の形に統一する。
 - `CODEX_TIMEOUT`
 - `CODEX_USAGE_LIMIT`
 - `CODEX_TURN_FAILED`
+- `CODEX_OUTPUT_SCHEMA_INVALID`
 - `INVALID_GITHUB_URL`
 - `REPOSITORY_NOT_FOUND`
 - `REPOSITORY_TOO_LARGE`

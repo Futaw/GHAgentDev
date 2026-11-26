@@ -1,6 +1,6 @@
 # Phase 2 手動テストガイド
 
-- 更新日: 2026-11-25
+- 更新日: 2026-11-27
 - 対象: RepoSpec Viewer Phase 2「Viewer生成と保存」
 - 想定環境: macOS、Python 3.12以上、Node.js 24、UTF8のPostgreSQL、Codex CLI 0.164.0
 - 照合元: [Phase 2詳細設計](./phase-2-detailed-design.md)、現行のBackend / Frontend実装、[最終受入記録](./verification/2026-11-09-phase-2-acceptance.md)
@@ -356,6 +356,8 @@ Phase 2の参照表示には「Source Code ViewerはPhase 3で追加します。
 | Backendとの通信断 | 通信エラーを表示し、入力を保持する。Backend復帰後に利用者が再試行できる |
 
 受付前のHTTPエラーと、受付後のJobの`failed`は区別してください。Jobが非再試行可能なエラーになった場合は、「同じ条件で再試行」を表示しません。
+
+Codexがアプリの送信用Schemaを拒否した場合は、`CODEX_OUTPUT_SCHEMA_INVALID`と「生成に使う出力形式をCodexが受け付けませんでした。」、trace IDを表示します。アプリの修正が必要なため、同条件再試行は表示しません。生成後のJSON検証失敗`DOCUMENT_SCHEMA_INVALID`とは区別します。通常設定を壊して再現せず、Fake結合テストとUIテストで確認できます。今回の修正前に保存済みの失敗Jobのcodeやretryableは書き換えません。
 
 ### P2-12: 同時生成・Sync・削除の拒否
 

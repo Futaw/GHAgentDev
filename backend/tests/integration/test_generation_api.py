@@ -117,6 +117,9 @@ class StructuredCodex:
                 },
             }
         if method == "turn/start":
+            from backend.tests.unit.test_output_schema import assert_output_schema_contract
+
+            assert_output_schema_contract(params["outputSchema"])
             self.turn_count += 1
             self.turn_params = params
             if self.fault == "turn_timeout":
@@ -216,6 +219,30 @@ class StructuredCodex:
             )
         if self.fault == "epoch":
             self.security_epoch += 1
+        if self.fault in {"invalid_output_schema", "turn_failed"}:
+            messages = [
+                (
+                    "turn/completed",
+                    {
+                        "threadId": "thread-generation",
+                        "turn": {
+                            "id": "turn-generation",
+                            "status": "failed",
+                            "items": [],
+                            "error": {
+                                "message": (
+                                    "Invalid schema for response_format 'codex_output_schema': "
+                                    "oneOf is not supported for strict schemas. "
+                                    "never-log-sensitive-token /private/secret/path"
+                                    if self.fault == "invalid_output_schema"
+                                    else "never-log-sensitive-provider-error"
+                                ),
+                                "additionalDetails": "never-log-sensitive-details",
+                            },
+                        },
+                    },
+                )
+            ]
         for method, params in messages:
             await asyncio.gather(*(handler(method, params) for handler in self.handlers))
 
@@ -252,6 +279,8 @@ async def git(path: Path, *arguments: str) -> str:
         "turn_timeout",
         "turn_deadline",
         "save_epoch",
+        "invalid_output_schema",
+        "turn_failed",
     ],
 )
 async def test_generation_api_saves_only_validated_viewer(
@@ -428,6 +457,8 @@ async def test_generation_api_saves_only_validated_viewer(
                     "turn_timeout": "CODEX_TIMEOUT",
                     "turn_deadline": "CODEX_TIMEOUT",
                     "save_database_error": "GENERATION_FAILED",
+                    "invalid_output_schema": "CODEX_OUTPUT_SCHEMA_INVALID",
+                    "turn_failed": "CODEX_TURN_FAILED",
                 }
                 assert error["code"] == expected.get(fault, "CODEX_SANDBOX_UNSUPPORTED"), (
                     detail.json()
@@ -439,6 +470,21 @@ async def test_generation_api_saves_only_validated_viewer(
                     assert "operation=saving_viewer" in caplog.text
                     assert "sqlstate=22P05" in caplog.text
                     assert "never-log-sensitive" not in caplog.text
+                if fault in {"invalid_output_schema", "turn_failed"}:
+                    assert error["retryable"] is (fault == "turn_failed")
+                    assert f"job_id={job_id}" in caplog.text
+                    assert f"trace_id={job_id}" in caplog.text
+                    assert f"classification={fault}" in caplog.text
+                    events = await app.state.generation_service.runner.event_buffer(
+                        UUID(job_id)
+                    ).wait_after(0, 0)
+                    published = json.dumps([event.payload for event in events])
+                    assert "never-log-sensitive" not in caplog.text + detail.text + published
+                    assert "/private/secret" not in caplog.text + detail.text + published
+                    assert codex.turn_count == 1
+                    assert not await git(
+                        repository, "for-each-ref", "--format=%(refname)", "refs/repospec/"
+                    )
                 if fault in {"config_timeout", "disconnect", "thread_missing", "thread_timeout"}:
                     assert codex.turn_count == 0
                 if fault == "repair_change":
@@ -524,6 +570,21 @@ async def test_generation_api_saves_only_validated_viewer(
             )
             assert failed_regeneration.json()["error"]["code"] == "CODEX_SANDBOX_UNSUPPORTED"
             preserved = await client.get(f"/api/viewers/{viewer_id}")
+            assert preserved.json()["content_revision"] == 1
+            assert preserved.json()["sanitized_html"] == before_html
+
+            codex.fault = "invalid_output_schema"
+            schema_rejected = await client.post(
+                f"/api/viewers/{viewer_id}/regenerate",
+                headers={"Idempotency-Key": "regenerate-schema-failure"},
+            )
+            assert schema_rejected.status_code == 202
+            await asyncio.gather(*list(app.state.generation_service.runner.tasks.values()))
+            rejected_job = await client.get(f"/api/generation-jobs/{schema_rejected.json()['id']}")
+            assert rejected_job.json()["error"]["code"] == "CODEX_OUTPUT_SCHEMA_INVALID"
+            assert rejected_job.json()["error"]["retryable"] is False
+            preserved = await client.get(f"/api/viewers/{viewer_id}")
+            assert preserved.json()["content_json"] == viewer.json()["content_json"]
             assert preserved.json()["content_revision"] == 1
             assert preserved.json()["sanitized_html"] == before_html
 

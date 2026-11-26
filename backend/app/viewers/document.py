@@ -4,7 +4,9 @@ import json
 from collections import Counter, defaultdict, deque
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from backend.app.codex.output_schema import codex_output_schema
 
 ID_PATTERN = r"^[a-z][a-z0-9-]{0,63}$"
 MAX_DOCUMENT_BYTES = 1_048_576
@@ -327,7 +329,7 @@ def parse_viewer_document(raw: str, max_bytes: int = MAX_DOCUMENT_BYTES) -> View
 
 
 def viewer_document_json_schema() -> dict[str, object]:
-    return TypeAdapter(ViewerDocument).json_schema()
+    return codex_output_schema(ViewerDocument)
 
 
 def canonical_document_json(document: ViewerDocument) -> dict[str, object]:

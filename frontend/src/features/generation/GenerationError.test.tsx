@@ -71,6 +71,18 @@ it('hides retry for a nonretryable Job and shows its trace', async () => {
   expect(screen.queryByRole('button', { name: '同じ条件で再試行' })).not.toBeInTheDocument()
 })
 
+it('identifies a rejected output schema and hides retry until the app is fixed', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+    id: 'job', status: 'failed', current_phase: 'analyzing_repository', viewer_id: null,
+    error: { code: 'CODEX_OUTPUT_SCHEMA_INVALID', message: 'アプリの出力形式に問題があります。修正後に新しく生成してください。', retryable: false, trace_id: 'schema-trace' },
+  }), { status: 200 }))
+  mount('job')
+  expect(await screen.findByText('生成に使う出力形式をCodexが受け付けませんでした。')).toBeInTheDocument()
+  expect(screen.getByText('code: CODEX_OUTPUT_SCHEMA_INVALID')).toBeInTheDocument()
+  expect(screen.getByText('schema-trace')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '同じ条件で再試行' })).not.toBeInTheDocument()
+})
+
 it('displays a Job retry POST failure without repeating the request', async () => {
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
     if (init?.method === 'POST') return new Response(JSON.stringify({ code: 'CODEX_UNAVAILABLE', detail: '接続状態を確認してください。', trace_id: 'retry-trace' }), { status: 503 })

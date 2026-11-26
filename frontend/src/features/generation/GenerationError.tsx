@@ -5,6 +5,7 @@ const messages: Record<string, string> = {
   CODEX_UNAVAILABLE: 'Codexに接続できません。接続状態を確認してから再試行してください。',
   CODEX_SANDBOX_UNSUPPORTED: 'Codexの安全設定を確認できないため、生成を開始しませんでした。',
   DATABASE_ENCODING_UNSUPPORTED: '保存先DBがUTF8ではないため、生成を開始しませんでした。',
+  CODEX_OUTPUT_SCHEMA_INVALID: '生成に使う出力形式をCodexが受け付けませんでした。',
 }
 
 type Failure = { code: string; message: string; trace_id?: string }
