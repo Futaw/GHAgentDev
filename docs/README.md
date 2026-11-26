@@ -181,6 +181,7 @@ Codexは任意のHTML、CSS、JavaScript、座標、class名を出力しない�
 - [Phase 2 詳細設計の引き継ぎ](./phase-2-design-handoff.md)
 - [Phase 3 詳細設計書](./phase-3-detailed-design.md)
 - [Phase 0・1 手動テストガイド](./phase-0-1-manual-test-guide.md)
+- [Phase 2 手動テストガイド](./phase-2-manual-test-guide.md)
 - [完成時の画面モック・操作ガイド](./mockups/repospec-viewer-screen-guide.html)
 
 Phaseごとの実装開始前に詳細設計書を追加し、スコープ、状態、API、データ、処理、画面、テスト、完了条件を確定する。
